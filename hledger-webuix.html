@@ -23,6 +23,7 @@ html{overflow-y:scroll;scrollbar-gutter:stable}*{box-sizing:border-box}body{marg
     <button data-tab="imports">⇩ &nbsp; Bank imports & files</button>
     <button data-tab="automations">⚙ &nbsp; Automations</button>
     <button data-tab="git">⑂ &nbsp; Git history</button>
+    <button data-tab="settings">⚙ &nbsp; Settings & updates</button>
   </nav>
   <div class="sidefooter">webuix <span id="app-version">0.2.0</span><div id="side-workspace">Workspace not connected</div><div>No cloud sync. Runs locally.</div></div>
 </aside>
@@ -39,20 +40,6 @@ html{overflow-y:scroll;scrollbar-gutter:stable}*{box-sizing:border-box}body{marg
       <div class="row" style="margin-top:14px"><label class="field">First year <input id="setup-year" value="2026" type="number" min="1900" max="2199"></label><button id="init-btn" class="btn primary" style="align-self:end">Create folders</button></div>
     </div>
     <div class="cards3" style="margin-top:16px"><div class="card"><div class="tiny">hledger engine</div><div class="value" id="card-engine">—</div><p id="card-engine-extra">Checking executable</p></div><div class="card"><div class="tiny">Accounting years</div><div class="value" id="card-years">—</div><p>Combined through one main journal</p></div><div class="card"><div class="tiny">Version history</div><div class="value" id="card-git">—</div><p>Manual Git checkpoints only</p></div></div>
-    <div class="card" id="hledger-config-card" style="margin-top:16px">
-      <h3>hledger CLI installation & path</h3>
-      <p id="hledger-detail" role="status">Checking hledger installation…</p>
-      <p class="note">If hledger is not on PATH, enter its full executable path. For Windows use e.g. <code>C:\\tools\\hledger\\hledger.exe</code>; for Linux use <code>/usr/local/bin/hledger</code>. Only select a binary you trust. <a href="https://hledger.org/install.html" target="_blank" rel="noopener noreferrer">hledger installation guide</a>.</p>
-      <div class="row" style="margin-top:14px">
-        <label class="field" style="flex:1;min-width:min(240px,100%)">hledger executable (optional override)
-          <input type="text" class="inp" id="hledger-path" placeholder="Full path to hledger.exe or hledger" spellcheck="false" autocomplete="off">
-        </label>
-        <button class="btn primary" id="hledger-path-save" style="align-self:end">Save path & check</button>
-        <button class="btn" id="hledger-path-reset" style="align-self:end">Use PATH</button>
-      </div>
-      <p class="note" id="node-detail">Node.js version is detected from this server.</p>
-      <p class="note">The executable setting is kept locally in <code>.webuix/settings.json</code> within your finance workspace and excluded from new Git repositories. No journal is saved when changing this setting.</p>
-    </div>
     <h2 class="section-title">Quick balance overview</h2><pre id="overview-output" class="output mono">Initialize your workspace to see a report.</pre>
     <p class="note">The hledger version shown above is detected from your computer. UI compatibility depends on the installed CLI and accounting data; use Check after updates.</p>
   </section>
@@ -75,6 +62,40 @@ html{overflow-y:scroll;scrollbar-gutter:stable}*{box-sizing:border-box}body{marg
     <div class="card" style="margin-top:16px"><h3>Preview bank import (no write)</h3><p>The CSV must already be present in <code>imports/&lt;year&gt;/</code>. Rules live in <code>rules/</code>. Use the preview to inspect generated entries and errors.</p><div class="row" style="margin:14px 0"><label class="field">Bank export<select id="import-csv"></select></label><label class="field">Import rules<select id="import-rules"></select></label><button class="btn primary" id="import-preview" style="align-self:end">Preview with hledger</button></div><pre id="import-output" class="output mono">Select a bank file and preview the import.</pre><p class="note">Applying imports is intentionally not automated in this first version; it would write to the journal and requires an additional reviewed confirmation flow.</p></div>
   </section>
   <section id="tab-automations" class="panel"><div class="eyebrow">Controlled local scripts</div><h1 class="heading">Automations</h1><p class="subtitle">Manage trusted Python, JavaScript, PowerShell or shell scripts for bank API integrations and data preparation.</p><div class="danger-note">Scripts run on your computer with your account's permissions. Only list scripts you trust in <code>automations/scripts.json</code>. Running requires an explicit confirmation. No scheduler and no API credentials are stored by the UI.</div><div id="scripts-list" class="grid" style="margin-top:18px"></div><h2 class="section-title">Last execution</h2><pre id="script-output" class="output mono">No script executed.</pre></section>
+
+  <section id="tab-settings" class="panel">
+    <div class="eyebrow">Local components</div><h1 class="heading">Settings & runtime updates</h1>
+    <p class="subtitle">Manage hledger and approved portable runtimes independently. Your finance workspace is not modified during runtime updates.</p>
+    <div class="grid">
+      <div class="card"><h3>Node.js runtime</h3>
+        <p id="runtime-node-status" class="note" role="status">Checking Node.js…</p>
+        <p class="note">Approved portable version: <strong id="runtime-node-target">—</strong>. A new runtime becomes active on the next start.</p>
+        <button id="runtime-update-node" class="btn primary" type="button">Install / update bundled Node.js</button>
+      </div>
+      <div class="card"><h3>hledger CLI</h3>
+        <p id="runtime-hledger-status" class="note" role="status">Checking hledger…</p>
+        <p class="note">Approved portable version: <strong id="runtime-hledger-target">—</strong>. An explicit custom executable path takes priority over the bundled runtime.</p>
+        <button id="runtime-update-hledger" class="btn primary" type="button">Install / update bundled hledger</button>
+      </div>
+    </div>
+    <p class="note" id="runtime-update-note">Checking portable update availability…</p>
+    <div class="danger-note">On Windows x64, each button opens a separate PowerShell window. Confirm there, then close the server console with Ctrl+C. The updater waits for the server to exit before downloading or activating a new executable. Each download is SHA-256 verified. Older runtime folders remain for rollback. No automatic updates and no changes to accounting data.</div>
+    <div class="card" id="hledger-config-card" style="margin-top:16px">
+      <h3>hledger CLI installation & path</h3>
+      <p id="hledger-detail" role="status">Checking hledger installation…</p>
+      <p class="note">If hledger is not on PATH, enter its full executable path. For Windows use e.g. <code>C:\\tools\\hledger\\hledger.exe</code>; for Linux use <code>/usr/local/bin/hledger</code>. Only select a binary you trust. <a href="https://hledger.org/install.html" target="_blank" rel="noopener noreferrer">hledger installation guide</a>.</p>
+      <div class="row" style="margin-top:14px">
+        <label class="field" style="flex:1;min-width:min(240px,100%)">hledger executable (optional override)
+          <input type="text" class="inp" id="hledger-path" placeholder="Full path to hledger.exe or hledger" spellcheck="false" autocomplete="off">
+        </label>
+        <button class="btn primary" id="hledger-path-save" style="align-self:end">Save path & check</button>
+        <button class="btn" id="hledger-path-reset" style="align-self:end">Use auto-detect</button>
+      </div>
+      <p class="note" id="node-detail">Node.js version is detected from this server.</p>
+      <p class="note">The executable setting is kept locally in <code>.webuix/settings.json</code> within your finance workspace and excluded from new Git repositories. No journal is saved when changing this setting.</p>
+    </div>
+
+  </section>
   <section id="tab-git" class="panel"><div class="eyebrow">Version control</div><h1 class="heading">Git history</h1><p class="subtitle">Create a checkpoint when you decide your accounting data is ready. Editing and Save never create Git commits automatically.</p><div class="card"><div class="toolbar"><h3 style="margin:0">Local repository</h3><div class="row"><button class="btn" id="git-init">Initialize Git</button><button class="btn" id="git-refresh">Refresh</button></div></div><p class="note">Only <code>books/</code>, <code>rules/</code>, <code>automations/</code> and <code>.gitignore</code> are eligible for commits from this UI. Invoices, raw bank exports and secrets are excluded by default.</p><label class="field">Commit message<input id="commit-message" placeholder="Reconcile bank statements — November 2026"></label><button class="btn primary" style="margin-top:12px" id="git-commit">Commit checkpoint</button></div><div class="grid" style="margin-top:16px"><div class="card"><h3>Working tree</h3><pre id="git-changes" class="output mono">Not initialized</pre></div><div class="card"><h3>Recent commits</h3><pre id="git-history" class="output mono">No history</pre></div></div><p class="note">Git is not an encrypted backup. Never push private financial data to a public GitHub repository. Make separate backups of invoices and imported bank files; these are ignored by default.</p></section>
 </div></main></div>
 <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
@@ -95,12 +116,19 @@ $('hledger-detail').textContent=s.hledger.installed
   : '✕ hledger missing · selected: '+s.hledger.path+' · '+(s.hledger.error||'not found');
 $('hledger-detail').style.color=s.hledger.installed?'var(--positive)':'var(--negative)';
 $('node-detail').textContent='Node.js '+s.node.version+' · '+s.node.path;
+$('runtime-node-status').textContent=s.node.version+' · '+s.node.source+' · '+s.node.path;
+$('runtime-hledger-status').textContent=s.hledger.installed?(s.hledger.version+' · '+s.hledger.source+' · '+s.hledger.path):('Missing hledger · '+s.hledger.path);
+$('runtime-node-target').textContent=s.runtime.target.node;
+$('runtime-hledger-target').textContent=s.runtime.target.hledger;
+$('runtime-update-node').disabled=!s.runtime.canUpdate;
+$('runtime-update-hledger').disabled=!s.runtime.canUpdate;
+$('runtime-update-note').textContent=s.runtime.canUpdate?'Windows x64 portable updater ready. Downloads and activation require confirmation.':'Portable updates currently support Windows x64. Linux uses installed runtimes.';
 if(document.activeElement!==$('hledger-path'))$('hledger-path').value=s.hledger.source==='saved'?s.hledger.path:'';$('card-years').textContent=String(s.years.length);$('card-git').textContent=s.git.initialized?'Enabled':'Not set up';const keep=s.years.includes(state.year)?state.year:s.years[s.years.length-1]||'';$('year-select').replaceChildren(...s.years.map(y=>new Option(y,y)));$('year-select').value=keep;$('year-tag').textContent=keep||'No year';if(keep&&keep!==state.year){state.year=keep;await loadJournal();}else state.year=keep;return s;}
 async function loadJournal(){if(!state.year)return;const j=await api('journal?year='+encodeURIComponent(state.year));state.original=j.content;state.etag=j.etag;$('journal-editor').value=j.content;setDirty(false);$('year-tag').textContent=state.year;}
 async function chooseYear(y){if(state.dirty&&!confirm('Discard the unsaved draft and switch year?')){$('year-select').value=state.year;return;}state.year=y;await act(async()=>{await loadJournal();await loadFiles();if(state.tab==='reports')await runReport();});}
 async function createWorkspace(){const y=$('setup-year').value;await act(async()=>{const r=await api('init',{year:y});await refreshStatus();toast('Workspace ready. Created '+r.created.length+' files.');await overview();});}
 async function saveJournal(){if(!state.dirty)return;await act(async()=>{const r=await api('save',{year:state.year,content:$('journal-editor').value,etag:state.etag});state.original=$('journal-editor').value;state.etag=r.etag;setDirty(false);toast(r.changed?'Saved and validated by hledger.':'No changes to save.');await overview();});}
-async function overview(){if(!state.initialized){$('overview-output').textContent='Create the structure first.';return;}if(!state.status?.hledger.installed){$('overview-output').textContent='hledger is missing. Install it or configure its executable path above to run reports.';return;}const r=await api('report',{command:'balance'});$('overview-output').textContent=r.ok?(r.stdout||'(No transactions yet)'):(r.stderr||r.stdout||'hledger failed');}
+async function overview(){if(!state.initialized){$('overview-output').textContent='Create the structure first.';return;}if(!state.status?.hledger.installed){$('overview-output').textContent='hledger is missing. Install it or configure its executable path in Settings to run reports.';return;}const r=await api('report',{command:'balance'});$('overview-output').textContent=r.ok?(r.stdout||'(No transactions yet)'):(r.stderr||r.stdout||'hledger failed');}
 async function runReport(){if(!isReady())return;const req={command:$('report-command').value,period:$('report-period').value,query:$('report-query').value};$('report-output').textContent='Running hledger…';const r=await api('report',req);$('report-command-line').textContent=r.args.join(' ');$('report-output').textContent=r.ok?(r.stdout||'Command completed with no output.'):(r.stderr||r.stdout||'Command failed.');if(!r.ok)toast('hledger reported an error.');}
 async function loadFiles(){if(!state.year)return;const f=await api('files?year='+encodeURIComponent(state.year));state.files=f;const fill=(id,data)=>{$(id).replaceChildren(...(data.length?data.map(name=>{const li=document.createElement('li');li.textContent=name;return li;}):[Object.assign(document.createElement('li'),{textContent:'No files found.',className:'empty'})]));};fill('bank-list',f.imports);fill('issued-list',f.issued);fill('received-list',f.received);$('bank-count').textContent='('+f.imports.length+')';$('issued-count').textContent='('+f.issued.length+')';$('received-count').textContent='('+f.received.length+')';$('import-csv').replaceChildren(...f.imports.map(name=>new Option(name,name)));$('import-rules').replaceChildren(new Option('Auto-detect adjacent .rules',''),...f.rules.map(name=>new Option(name,name)));}
 async function previewImport(){const csv=$('import-csv').value;if(!csv){toast('No CSV file selected.');return;}$('import-output').textContent='Running import --dry-run…';await act(async()=>{const r=await api('import-preview',{year:state.year,csv,rules:$('import-rules').value});$('import-output').textContent=(r.ok?'Preview successful.\n\n':'Import validation failed.\n\n')+(r.stdout||'')+(r.stderr||'');});}
@@ -111,7 +139,16 @@ async function commitGit(){if(state.dirty){toast('Save or discard your draft bef
 function postingRow(){const div=document.createElement('div');div.className='post-row';div.innerHTML='<input class="inp" placeholder="assets:bank" aria-label="Account"><input class="inp" placeholder="-450 CZK" aria-label="Amount (hledger syntax)"><button class="btn danger" type="button" title="Remove posting">×</button>';div.querySelector('button').addEventListener('click',()=>{if($('postings').children.length<=2){toast('At least two postings are required.');return;}div.remove();});$('postings').append(div);}
 function draftTransaction(){if(!state.year){toast('Select a year first.');return;}const date=$('tx-date').value,desc=$('tx-desc').value.trim(),status=$('tx-status').value;if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!desc||/[\r\n]/.test(desc)){toast('Provide a date and single-line description.');return;}const posts=[...$('postings').children].map(row=>[...row.querySelectorAll('input')].map(input=>input.value.trim()));if(posts.some(p=>!p[0]||/[\r\n]/.test(p[0])||/[\r\n]/.test(p[1]))){toast('Every posting needs a single-line account name.');return;}if(posts.filter(p=>!p[1]).length>1){toast('At most one amount may be blank.');return;}const lines=[date+' '+(status?status+' ':'')+desc,...posts.map(p=>'    '+p[0]+(p[1]?'  '+p[1]:''))].join('\n');const editor=$('journal-editor');editor.value=editor.value.replace(/\s*$/,'')+'\n\n'+lines+'\n';setDirty(editor.value!==state.original);$('tx-desc').value='';switchTab('journal');toast('Transaction added to unsaved draft. Save & validate when ready.');}
 document.querySelectorAll('[data-tab]').forEach(el=>el.addEventListener('click',()=>switchTab(el.dataset.tab)));
-$('configure-hledger-btn').addEventListener('click',()=>{switchTab('overview');$('hledger-config-card').scrollIntoView({behavior:'smooth',block:'center'});$('hledger-path').focus();});
+$('configure-hledger-btn').addEventListener('click',()=>{switchTab('settings');$('hledger-config-card').scrollIntoView({behavior:'smooth',block:'center'});$('hledger-path').focus();});
+async function requestPortableUpdate(component){
+  if(!confirm('Start a separate updater for '+component+'? Confirm in PowerShell and close this server with Ctrl+C before activation. Accounting data will not be touched.'))return;
+  await act(async()=>{
+    const result=await api('runtime-update',{component});
+    toast('PowerShell updater launched. Confirm there, close this server with Ctrl+C, then restart webuix. Target: '+result.target);
+  });
+}
+$('runtime-update-node').addEventListener('click',()=>requestPortableUpdate('node'));
+$('runtime-update-hledger').addEventListener('click',()=>requestPortableUpdate('hledger'));
 $('hledger-path-save').addEventListener('click',()=>act(async()=>{
   const value=$('hledger-path').value.trim();
   if(!value){toast('Enter an absolute path, or click Use PATH to reset.');return;}
@@ -119,7 +156,7 @@ $('hledger-path-save').addEventListener('click',()=>act(async()=>{
   await refreshStatus();toast('hledger executable checked and saved.');await overview();
 }));
 $('hledger-path-reset').addEventListener('click',()=>act(async()=>{
-  await api('hledger-path',{path:''});await refreshStatus();toast('Using hledger from PATH or HLEDGER_BIN.');await overview();
+  await api('hledger-path',{path:''});await refreshStatus();toast('Using automatic detection: HLEDGER_BIN, bundled hledger, or PATH.');await overview();
 }));
 $('theme-btn').addEventListener('click',()=>{const next=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=next;});
 $('year-select').addEventListener('change',e=>chooseYear(e.target.value));$('init-btn').addEventListener('click',createWorkspace);$('save-btn').addEventListener('click',saveJournal);$('discard-btn').addEventListener('click',()=>{if(state.dirty&&!confirm('Discard all unsaved changes?'))return;$('journal-editor').value=state.original;setDirty(false);});$('journal-editor').addEventListener('input',()=>setDirty($('journal-editor').value!==state.original));$('check-btn').addEventListener('click',()=>act(async()=>{const r=await api('report',{command:'check'});toast(r.ok?'Whole ledger passes hledger check.':r.stderr||r.stdout||'Check failed.');}));$('report-run').addEventListener('click',()=>act(runReport));$('import-preview').addEventListener('click',previewImport);$('git-init').addEventListener('click',initGit);$('git-refresh').addEventListener('click',()=>act(loadGit));$('git-commit').addEventListener('click',commitGit);$('add-posting').addEventListener('click',postingRow);$('draft-tx').addEventListener('click',draftTransaction);
