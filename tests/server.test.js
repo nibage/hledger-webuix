@@ -181,3 +181,21 @@ test('launchers handle missing Node.js and start the server in open-browser mode
     assert.match(source, /HLEDGER_WORKSPACE/);
   }
 });
+
+test('favicon is served as SVG and tab content has stable layout rules', async t => {
+  const { base } = await fixture(t);
+  const icon = await fetch(base + '/favicon.svg');
+  assert.equal(icon.status, 200);
+  assert.match(icon.headers.get('content-type'), /^image\/svg\+xml/);
+  const svg = await icon.text();
+  assert.match(svg, /<svg\s/);
+  assert.match(svg, /hledger webuix/);
+  const home = await fetch(base + '/');
+  assert.equal(home.status, 200);
+  const html = await home.text();
+  assert.match(html, /rel="icon" type="image\/svg\+xml" href="\/favicon.svg"/);
+  assert.match(html, /scrollbar-gutter:stable/);
+  assert.match(html, /grid-template-areas:"page actions" "statuses statuses"/);
+  assert.match(html, /class="header-status"/);
+  assert.match(html, /if\(tab!==state.tab\)window.scrollTo\(0,0\)/);
+});

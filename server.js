@@ -319,6 +319,16 @@ function createApp({ workspace, port = 8765, hledgerBin = process.env.HLEDGER_BI
     const send = (statusCode, data) => { res.writeHead(statusCode, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }); res.end(JSON.stringify(data)); };
     try {
       const url = new URL(req.url, `http://${host}`);
+      if (req.method === 'GET' && url.pathname === '/favicon.svg') {
+        const favicon = await fsp.readFile(path.join(__dirname, 'favicon.svg'));
+        res.writeHead(200, {
+          'Content-Type': 'image/svg+xml; charset=utf-8',
+          'Cache-Control': 'public, max-age=3600',
+          'X-Content-Type-Options': 'nosniff',
+          'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'"
+        });
+        res.end(favicon); return;
+      }
       if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/hledger-webuix.html')) {
         const html = await fsp.readFile(frontendFile);
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'" });
