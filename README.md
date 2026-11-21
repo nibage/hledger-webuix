@@ -15,15 +15,15 @@ Each button launches a separate PowerShell window; you must confirm the operatio
 If you want to stage a runtime before first launch (does not need Node.js), run in PowerShell:
 
 ```powershell
-.\scripts\update-runtime.ps1 -Component node
-.\scripts\update-runtime.ps1 -Component hledger
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\update-runtime.ps1 -Component node
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\update-runtime.ps1 -Component hledger
 ```
 
-These commands install only the reviewed versions. To ship an updated version, update its URL, version and hash in `runtime-manifest.json` after reviewing the upstream release and testing CLI compatibility. The buttons **do not silently upgrade to arbitrary latest releases**. To build a fully self-contained release ZIP on Windows x64, run `powershell -File scripts/build-portable-windows.ps1` or trigger the **Build portable Windows ZIP** GitHub Actions workflow manually and download its ZIP artifact. Do not copy `runtime/` binaries into source control; its downloaded contents are ignored. These scripts are Windows x64 only; Linux currently continues using system-installed runtimes.
+These commands install only the reviewed versions. To ship an updated version, update its URL, version and hash in `runtime-manifest.json` after reviewing the upstream release and testing CLI compatibility. The buttons **do not silently upgrade to arbitrary latest releases**. To build a fully self-contained release ZIP on Windows x64, run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-portable-windows.ps1` or trigger the **Build portable Windows ZIP** GitHub Actions workflow manually and download its ZIP artifact. Do not copy `runtime/` binaries into source control; its downloaded contents are ignored. These scripts are Windows x64 only; Linux currently continues using system-installed runtimes.
 
 ## Packaging recommendation
 
-The current source repo intentionally does **not** vendor Node.js or hledger binaries. For future releases, we plan two distribution modes: (1) a small source/installer package that uses installed Node.js and hledger, and (2) self-contained **portable ZIP/TAR packages per OS and CPU architecture** bundling unmodified, pinned upstream runtime binaries. Bundled runtime updates should be handled in a separate release pipeline, with version/hash verification, security patch tracking and licence notices; **never** check banking data or vendor executables into the public source repository. Keep the private finance workspace outside the app folder so updates cannot overwrite it. This is a design proposal, **not yet an implemented bundled release**.
+The source repo intentionally does **not** vendor Node.js or hledger binaries. Two Windows distribution modes are now possible: (1) a small source package that uses installed Node.js and hledger, and (2) a self-contained **Windows x64 portable ZIP** built by the provided workflow that bundles verified upstream runtime binaries. Linux portable packaging remains a future milestone. Bundled runtime updates should be handled in a separate release pipeline, with version/hash verification, security patch tracking and licence notices; **never** check banking data or vendor executables into the public source repository. Keep the private finance workspace outside the app folder so updates cannot overwrite it. This is a design proposal, **not yet an implemented bundled release**.
 
 ## Windows: installing hledger without Scoop
 
