@@ -9,7 +9,7 @@ const { createApp } = require('../server');
 async function fixture(t) {
   const home = await fs.mkdtemp(path.join(os.tmpdir(), 'hledger-webuix-test-'));
   t.after(async () => { await fs.rm(home, { recursive: true, force: true }); });
-  const bin = path.join(home, 'fake-hledger');
+  const bin = path.join(home, 'fake-hledger.js');
   await fs.writeFile(bin, `#!/usr/bin/env node
 const fs=require('fs');const path=require('path');
 const args=process.argv.slice(2);if(args.includes('--version')){console.log('hledger 1.52.4 mock');process.exit(0)}
@@ -21,7 +21,7 @@ console.log('MOCK '+args.slice(2).join(' '));
 `);
   await fs.chmod(bin, 0o755);
   const workspace = path.join(home, 'private-finances');
-  const app = createApp({ workspace, port: 0, hledgerBin: bin });
+  const app = createApp({ workspace, port: 0, hledgerBin: process.execPath, hledgerArgsPrefix: [bin] });
   await new Promise(resolve => app.server.listen(0, '127.0.0.1', resolve));
   t.after(() => new Promise(resolve => app.server.close(resolve)));
   const port = app.server.address().port;
@@ -94,8 +94,10 @@ test('CSV import is preview-only and blocks path traversal and symlinks', async 
   const preview = await call('POST', 'import-preview', { year: '2026', csv: 'bank-a/statement.csv', rules: 'bank.rules' });
   assert.equal(preview.status, 200); assert.match(preview.body.stdout, /PREVIEW ONLY/);
   assert.equal((await call('POST', 'import-preview', { year: '2026', csv: '../other.csv' })).status, 400);
-  await fs.symlink(path.join(workspace, 'books/main.journal'), path.join(workspace, 'imports/2026/bank-a/notcsv.csv'));
-  assert.equal((await call('POST', 'import-preview', { year: '2026', csv: 'bank-a/notcsv.csv' })).status, 400);
+  if (process.platform !== 'win32') {
+    await fs.symlink(path.join(workspace, 'books/main.journal'), path.join(workspace, 'imports/2026/bank-a/notcsv.csv'));
+    assert.equal((await call('POST', 'import-preview', { year: '2026', csv: 'bank-a/notcsv.csv' })).status, 400);
+  }
 });
 
 test('Git versioning is explicit and ignores bank source documents', async t => {

@@ -71,14 +71,14 @@ function runCommand(cmd, args, options = {}) {
   });
 }
 
-function createApp({ workspace, port = 8765, hledgerBin = process.env.HLEDGER_BIN || 'hledger', gitBin = process.env.GIT_BIN || 'git' }) {
+function createApp({ workspace, port = 8765, hledgerBin = process.env.HLEDGER_BIN || 'hledger', hledgerArgsPrefix = [], gitBin = process.env.GIT_BIN || 'git' }) {
   if (!workspace) fail('Provide a workspace path with --workspace.');
   workspace = path.resolve(workspace);
   const frontendFile = path.join(__dirname, 'hledger-webuix.html');
   const mainJournal = path.join(workspace, 'books', 'main.journal');
   const token = crypto.randomBytes(24).toString('hex');
   let mutationBusy = false;
-  async function hledger(args, timeout) { return runCommand(hledgerBin, args, { cwd: fs.existsSync(workspace) ? workspace : __dirname, timeout }); }
+  async function hledger(args, timeout) { return runCommand(hledgerBin, [...hledgerArgsPrefix, ...args], { cwd: fs.existsSync(workspace) ? workspace : __dirname, timeout }); }
   async function git(args) { return runCommand(gitBin, args, { cwd: fs.existsSync(workspace) ? workspace : __dirname }); }
   function yearJournal(year) { return path.join(workspace, 'books', 'years', yearOK(year), 'transactions.journal'); }
   async function safeYearJournal(year) {

@@ -92,7 +92,7 @@ document.querySelectorAll('[data-tab]').forEach(el=>el.addEventListener('click',
 $('theme-btn').addEventListener('click',()=>{const next=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=next;});
 $('year-select').addEventListener('change',e=>chooseYear(e.target.value));$('init-btn').addEventListener('click',createWorkspace);$('save-btn').addEventListener('click',saveJournal);$('discard-btn').addEventListener('click',()=>{if(state.dirty&&!confirm('Discard all unsaved changes?'))return;$('journal-editor').value=state.original;setDirty(false);});$('journal-editor').addEventListener('input',()=>setDirty($('journal-editor').value!==state.original));$('check-btn').addEventListener('click',()=>act(async()=>{const r=await api('report',{command:'check'});toast(r.ok?'Whole ledger passes hledger check.':r.stderr||r.stdout||'Check failed.');}));$('report-run').addEventListener('click',()=>act(runReport));$('import-preview').addEventListener('click',previewImport);$('git-init').addEventListener('click',initGit);$('git-refresh').addEventListener('click',()=>act(loadGit));$('git-commit').addEventListener('click',commitGit);$('add-posting').addEventListener('click',postingRow);$('draft-tx').addEventListener('click',draftTransaction);
 window.addEventListener('beforeunload',e=>{if(state.dirty){e.preventDefault();e.returnValue='';}});
-$('tx-date').value=new Date().toLocaleDateString('en-CA');postingRow();postingRow();setDirty(false);
+const now=new Date();$('tx-date').value=[now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('-');postingRow();postingRow();setDirty(false);
 act(async()=>{await refreshStatus();await overview();});
 </script>
 </body>
