@@ -143,7 +143,7 @@ test('reports Node version and persists a validated custom hledger path (includi
   assert.equal(original.node.installed, true);
   assert.equal(original.node.version, process.version);
   assert.equal(original.hledger.installed, true);
-  assert.match(original.hledger.version, /hledger 1\\.52/);
+  assert.match(original.hledger.version, /hledger 1\.52/);
 
   assert.equal((await call('POST', 'hledger-path', { path: 'relative/hledger.exe' })).status, 400);
   assert.equal((await call('POST', 'hledger-path', { path: path.join(home, 'missing-hledger.exe') })).status, 400);
@@ -175,8 +175,8 @@ test('launchers handle missing Node.js and start the server in open-browser mode
     fs.readFile(path.join(projectRoot, 'start.sh'), 'utf8')
   ]);
   for (const source of [bat, sh]) {
-    assert.match(source, /please install node\\.js/i);
-    assert.match(source, /https:\/\/nodejs\\.org\/en\/download/);
+    assert.match(source, /please install node\.js/i);
+    assert.match(source, /https:\/\/nodejs\.org\/en\/download/);
     assert.match(source, /--open/);
     assert.match(source, /HLEDGER_WORKSPACE/);
   }
