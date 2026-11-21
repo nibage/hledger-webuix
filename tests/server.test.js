@@ -136,3 +136,48 @@ test('scripts require manifest and stay within trusted scripts directory', async
   await fs.writeFile(manifest, JSON.stringify({ scripts: [{ id: 'bad', file: '../server.js' }] }));
   assert.equal((await call('GET', 'scripts')).status, 400);
 });
+
+test('reports Node version and persists a validated custom hledger path (including when PATH is missing)', async t => {
+  const { home, workspace, call } = await fixture(t);
+  const original = (await call('GET', 'status')).body;
+  assert.equal(original.node.installed, true);
+  assert.equal(original.node.version, process.version);
+  assert.equal(original.hledger.installed, true);
+  assert.match(original.hledger.version, /hledger 1\\.52/);
+
+  assert.equal((await call('POST', 'hledger-path', { path: 'relative/hledger.exe' })).status, 400);
+  assert.equal((await call('POST', 'hledger-path', { path: path.join(home, 'missing-hledger.exe') })).status, 400);
+  const good = await call('POST', 'hledger-path', { path: process.execPath });
+  assert.equal(good.status, 200, JSON.stringify(good.body));
+  assert.equal(good.body.hledger.installed, true);
+  assert.equal(good.body.hledger.source, 'saved');
+  assert.equal(good.body.hledger.path, process.execPath);
+  assert.equal(JSON.parse(await fs.readFile(path.join(workspace, '.webuix/settings.json'), 'utf8')).hledgerPath, process.execPath);
+  // Status must survive app restart, with no real hledger on PATH.
+  const unavailable = createApp({
+    workspace,
+    hledgerBin: path.join(home, 'does-not-exist-hledger'),
+    hledgerArgsPrefix: [path.join(home, 'fake-hledger.js')]
+  });
+  assert.equal((await unavailable.status()).hledger.installed, true);
+  assert.equal((await unavailable.status()).hledger.source, 'saved');
+  const removed = await call('POST', 'hledger-path', { path: '' });
+  assert.equal(removed.status, 200);
+  assert.notEqual(removed.body.hledger.source, 'saved');
+  assert.equal((await unavailable.status()).hledger.installed, false);
+  await assert.rejects(fs.access(path.join(workspace, '.webuix/settings.json')));
+});
+
+test('launchers handle missing Node.js and start the server in open-browser mode', async () => {
+  const projectRoot = path.join(__dirname, '..');
+  const [bat, sh] = await Promise.all([
+    fs.readFile(path.join(projectRoot, 'start.bat'), 'utf8'),
+    fs.readFile(path.join(projectRoot, 'start.sh'), 'utf8')
+  ]);
+  for (const source of [bat, sh]) {
+    assert.match(source, /please install node\\.js/i);
+    assert.match(source, /https:\/\/nodejs\\.org\/en\/download/);
+    assert.match(source, /--open/);
+    assert.match(source, /HLEDGER_WORKSPACE/);
+  }
+});
