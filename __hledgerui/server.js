@@ -13,12 +13,12 @@ const PORTABLE_MANIFEST = require('./runtime-manifest.json');
 const PORTABLE_WINDOWS_X64 = process.platform === 'win32' && process.arch === 'x64';
 function portableBinary(component) {
   if (!PORTABLE_WINDOWS_X64) return null;
-  const root = path.join(__dirname, 'runtime', component, 'win-x64');
+  const root = path.join(__dirname, 'data', component, 'win-x64');
   let active = '';
   try { active = fs.readFileSync(path.join(root, 'active.txt'), 'utf8').trim(); }
   catch { return null; }
   if (!/^v\d+\.\d+\.\d+$/.test(active)) return null;
-  const executable = path.join(root, active, component === 'node' ? 'node.exe' : 'hledger.exe');
+  const executable = path.join(root, active, component === 'node' ? 'node.exe' : component === 'git' ? 'git.exe' : 'hledger.exe');
   return fs.existsSync(executable) ? executable : null;
 }
 const READ_COMMANDS = new Set(['print', 'balance', 'register', 'aregister', 'balancesheet', 'incomestatement', 'cashflow', 'accounts', 'payees', 'tags', 'prices', 'stats', 'files', 'check']);
@@ -83,10 +83,10 @@ function runCommand(cmd, args, options = {}) {
   });
 }
 
-function createApp({ workspace, port = 8765, hledgerBin = process.env.HLEDGER_BIN || 'hledger', hledgerArgsPrefix = [], gitBin = process.env.GIT_BIN || 'git' }) {
+function createApp({ workspace, port = 8765, hledgerBin = process.env.HLEDGER_BIN || 'hledger', hledgerArgsPrefix = [], gitBin = process.env.GIT_BIN || portableBinary('git') || 'git' }) {
   if (!workspace) fail('Provide a workspace path with --workspace.');
   workspace = path.resolve(workspace);
-  const frontendFile = path.join(__dirname, 'hledger-webuix.html');
+  const frontendFile = path.join(__dirname, 'index.html');
   const mainJournal = path.join(workspace, 'books', 'main.journal');
   const token = crypto.randomBytes(24).toString('hex');
   const localSettingsFile = path.join(workspace, '.webuix', 'settings.json');
@@ -190,7 +190,7 @@ function createApp({ workspace, port = 8765, hledgerBin = process.env.HLEDGER_BI
       node: {
         installed: true, version: process.version, path: process.execPath,
         source: PORTABLE_WINDOWS_X64 && path.normalize(process.execPath).toLowerCase().startsWith(
-          (path.join(__dirname, 'runtime', 'node', 'win-x64') + path.sep).toLowerCase()
+          (path.join(__dirname, 'data', 'node', 'win-x64') + path.sep).toLowerCase()
         ) ? 'bundled' : 'system'
       },
       runtime: {
@@ -203,7 +203,12 @@ function createApp({ workspace, port = 8765, hledgerBin = process.env.HLEDGER_BI
         path: selected.binary, source: selected.source,
         error: installed ? '' : (h.stderr || 'The selected executable is not a working hledger CLI.').trim().slice(0, 500)
       },
-      git: { installed: g.ok, version: (g.stdout || g.stderr).trim().split('\n')[0], initialized: gitRoot },
+      git: {
+        installed: g.ok, version: (g.stdout || g.stderr).trim().split('\n')[0],
+        initialized: gitRoot, path: gitBin,
+        source: process.env.GIT_BIN ? 'environment' : (PORTABLE_WINDOWS_X64 && gitBin === portableBinary('git') ? 'bundled' : 'PATH'),
+        bundledAvailable: !!portableBinary('git')
+      },
       supported: 'CLI integration tested with a mock for hledger 1.52.x; verify your installed version with Check'
     };
   }
@@ -374,7 +379,7 @@ function createApp({ workspace, port = 8765, hledgerBin = process.env.HLEDGER_BI
         });
         res.end(favicon); return;
       }
-      if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/hledger-webuix.html')) {
+      if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) {
         const html = await fsp.readFile(frontendFile);
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'" });
         res.end(html); return;
@@ -410,22 +415,30 @@ if (require.main === module) {
   const args = process.argv.slice(2);
   const option = name => { const i = args.indexOf(name); return i === -1 ? null : args[i + 1]; };
   const workspace = option('--workspace') || process.env.HLEDGER_WORKSPACE;
-  const port = Number(option('--port') || 8765);
+  const port = Number(option('--port') || process.env.HLEDGER_PORT || 8765);
   if (!workspace || !Number.isInteger(port) || port < 1 || port > 65535) {
-    console.error('Usage: node server.js --workspace "/path/to/private/finance" [--port 8765]');
+    console.error('Usage: node server.js --workspace "/path/to/private/finance" [--port 8765] [--open]');
     process.exit(1);
   }
   const app = createApp({ workspace, port });
+  app.server.on('error', error => {
+    if (error.code === 'EADDRINUSE') console.error(`Port ${port} is already used. Close the other webuix server or set HLEDGER_PORT to another port.`);
+    else console.error('Cannot start local server:', error.message);
+    process.exitCode = 1;
+  });
   app.server.listen(port, '127.0.0.1', () => {
     const url = `http://127.0.0.1:${port}/`;
     console.log(`hledger-webuix ready at ${url} (workspace: ${app.workspace})`);
     if (args.includes('--open')) {
+      // Only open after a successful listen. On Windows, Start-Process uses
+      // the system's default HTTP handler; an existing browser usually opens a new tab.
       const opener = process.platform === 'win32'
-        ? ['cmd.exe', ['/d', '/s', '/c', `start "" "${url}"`]]
+        ? ['powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `Start-Process -FilePath '${url}'`]]
         : process.platform === 'darwin' ? ['open', [url]] : ['xdg-open', [url]];
       try {
         const child = spawn(opener[0], opener[1], { detached: true, stdio: 'ignore', windowsHide: true });
         child.on('error', () => console.warn('Could not open browser automatically. Open ' + url));
+        child.on('exit', code => { if (code !== 0) console.warn('Could not open browser automatically. Open ' + url); });
         child.unref();
       } catch { console.warn('Could not open browser automatically. Open ' + url); }
     }

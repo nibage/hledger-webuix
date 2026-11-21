@@ -2,7 +2,7 @@ node_modules/
 .DS_Store
 .env
 *.log
-runtime/node/
-runtime/hledger/
-runtime/.staging-*/
+__hledgerui/data/node/win-x64/
+__hledgerui/data/hledger/win-x64/
+__hledgerui/data/git/win-x64/
 dist/

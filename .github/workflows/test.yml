@@ -20,7 +20,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          foreach ($script in @('scripts/update-runtime.ps1', 'scripts/build-portable-windows.ps1')) {
+          foreach ($script in @('__hledgerui/scripts/update-runtime.ps1', '__hledgerui/scripts/build-portable-windows.ps1')) {
             $tokens = $null
             $parseErrors = $null
             [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $script), [ref]$tokens, [ref]$parseErrors) | Out-Null
