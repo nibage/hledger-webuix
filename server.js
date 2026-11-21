@@ -77,8 +77,23 @@ function createApp({ workspace, port = 8765, hledgerBin = process.env.HLEDGER_BI
   const frontendFile = path.join(__dirname, 'hledger-webuix.html');
   const mainJournal = path.join(workspace, 'books', 'main.journal');
   const token = crypto.randomBytes(24).toString('hex');
+  const localSettingsFile = path.join(workspace, '.webuix', 'settings.json');
   let mutationBusy = false;
-  async function hledger(args, timeout) { return runCommand(hledgerBin, [...hledgerArgsPrefix, ...args], { cwd: fs.existsSync(workspace) ? workspace : __dirname, timeout }); }
+  async function selectedHledger() {
+    const raw = await fileIfExists(localSettingsFile);
+    if (raw !== null) {
+      try {
+        const saved = JSON.parse(raw);
+        if (typeof saved.hledgerPath === 'string' && path.isAbsolute(saved.hledgerPath))
+          return { binary: saved.hledgerPath, source: 'saved' };
+      } catch { /* Invalid settings fall back to the startup executable. */ }
+    }
+    return { binary: hledgerBin, source: process.env.HLEDGER_BIN ? 'environment' : 'PATH' };
+  }
+  async function hledger(args, timeout) {
+    const selected = await selectedHledger();
+    return runCommand(selected.binary, [...hledgerArgsPrefix, ...args], { cwd: fs.existsSync(workspace) ? workspace : __dirname, timeout });
+  }
   async function git(args) { return runCommand(gitBin, args, { cwd: fs.existsSync(workspace) ? workspace : __dirname }); }
   function yearJournal(year) { return path.join(workspace, 'books', 'years', yearOK(year), 'transactions.journal'); }
   async function safeYearJournal(year) {
@@ -90,6 +105,37 @@ function createApp({ workspace, port = 8765, hledgerBin = process.env.HLEDGER_BI
   }
   async function assertInitialized() { if (!fs.existsSync(mainJournal)) fail('Create the workspace structure first.', 409); }
   async function mutate(fn) { if (mutationBusy) fail('Another write operation is running.', 409); mutationBusy = true; try { return await fn(); } finally { mutationBusy = false; } }
+  async function configureHledgerPath(value) {
+    if (typeof value !== 'string' || value.length > 4096 || /[\r\n\0]/.test(value)) fail('Enter a valid executable path.');
+    const binary = value.trim().replace(/^"(.*)"$/, '$1');
+    if (binary) {
+      if (!path.isAbsolute(binary)) fail('Enter an absolute path to hledger.exe (Windows) or hledger (Linux).');
+      let stat;
+      try { stat = await fsp.stat(binary); } catch { fail('Executable not found at the specified path.'); }
+      if (!stat.isFile()) fail('The selected path must point to a file.');
+      const probe = await runCommand(binary, [...hledgerArgsPrefix, '--version'], { cwd: fs.existsSync(workspace) ? workspace : __dirname, timeout: 5000 });
+      if (!probe.ok || !/^hledger(?:\s|$)/i.test(probe.stdout.trim()))
+        fail('The selected executable did not return a valid hledger --version. Choose a trusted hledger executable.');
+    }
+    return mutate(async () => {
+      if (!binary) {
+        await fsp.rm(localSettingsFile, { force: true });
+      } else {
+        await fsp.mkdir(path.dirname(localSettingsFile), { recursive: true });
+        const temp = localSettingsFile + '.tmp-' + crypto.randomBytes(6).toString('hex');
+        try {
+          await fsp.writeFile(temp, JSON.stringify({ hledgerPath: binary }, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          await fsp.rename(temp, localSettingsFile);
+        } finally { await fsp.rm(temp, { force: true }).catch(() => {}); }
+        // Backwards compatibility with workspaces created before the local-settings exclusion.
+        const ignoreFile = path.join(workspace, '.gitignore');
+        const existing = await fileIfExists(ignoreFile);
+        if (existing !== null && !/^\.webuix\/\s*$/m.test(existing))
+          await fsp.appendFile(ignoreFile, (existing.endsWith('\n') ? '' : '\n') + '.webuix/\n');
+      }
+      return status();
+    });
+  }
   async function putNew(file, content) { await fsp.mkdir(path.dirname(file), { recursive: true }); try { await fsp.writeFile(file, content, { encoding: 'utf8', flag: 'wx' }); return true; } catch (e) { if (e.code === 'EEXIST') return false; throw e; } }
   async function initWorkspace(year) {
     return mutate(async () => {
@@ -100,7 +146,7 @@ function createApp({ workspace, port = 8765, hledgerBin = process.env.HLEDGER_BI
         ['books/main.journal', '; hledger-webuix: all years are included for cumulative balances\ninclude years/*/transactions.journal\n'],
         [`books/years/${year}/transactions.journal`, `; Accounting transactions for ${year}\n`],
         ['automations/scripts.json', '{\n  "scripts": []\n}\n'],
-        ['.gitignore', '# Private source documents and bank exports stay outside Git by default.\nimports/\ndocuments/\n**/.env\n**/secrets/\n**/.webuix-draft-*\nnode_modules/\n']
+        ['.gitignore', '# Private source documents and bank exports stay outside Git by default.\nimports/\ndocuments/\n**/.env\n**/secrets/\n**/.webuix-draft-*\nnode_modules/\n.webuix/\n']
       ];
       for (const [rel, content] of files) if (await putNew(path.join(workspace, rel), content)) made.push(rel);
       for (const dir of [`imports/${year}`, `documents/${year}/issued`, `documents/${year}/received`, 'rules', 'automations/scripts']) await fsp.mkdir(path.join(workspace, dir), { recursive: true });
@@ -116,11 +162,23 @@ function createApp({ workspace, port = 8765, hledgerBin = process.env.HLEDGER_BI
     return [...set].sort();
   }
   async function status() {
-    const [h, g, yr, tracked] = await Promise.all([
-      hledger(['--version'], 5000), git(['--version']), years(), fileIfExists(mainJournal)
+    const [selected, h, g, yr, tracked] = await Promise.all([
+      selectedHledger(), hledger(['--version'], 5000), git(['--version']), years(), fileIfExists(mainJournal)
     ]);
+    const detectedVersion = (h.stdout || '').trim().split('\n')[0];
+    const installed = h.ok && /^hledger(?:\s|$)/i.test(detectedVersion);
     const gitRoot = fs.existsSync(path.join(workspace, '.git'));
-    return { appVersion: APP_VERSION, workspace, initialized: tracked !== null, years: yr, token, hledger: { installed: h.ok, version: (h.stdout || h.stderr).trim().split('\n')[0] }, git: { installed: g.ok, version: (g.stdout || g.stderr).trim().split('\n')[0], initialized: gitRoot }, supported: 'CLI integration tested with a mock for hledger 1.52.x; verify your installed version with Check' };
+    return {
+      appVersion: APP_VERSION, workspace, initialized: tracked !== null, years: yr, token,
+      node: { installed: true, version: process.version, path: process.execPath },
+      hledger: {
+        installed, version: installed ? detectedVersion : '',
+        path: selected.binary, source: selected.source,
+        error: installed ? '' : (h.stderr || 'The selected executable is not a working hledger CLI.').trim().slice(0, 500)
+      },
+      git: { installed: g.ok, version: (g.stdout || g.stderr).trim().split('\n')[0], initialized: gitRoot },
+      supported: 'CLI integration tested with a mock for hledger 1.52.x; verify your installed version with Check'
+    };
   }
   async function journal(year) {
     const filename = yearJournal(year);
@@ -278,6 +336,7 @@ function createApp({ workspace, port = 8765, hledgerBin = process.env.HLEDGER_BI
       if (req.method === 'POST') {
         const b = await bodyJSON(req);
         if (url.pathname === '/api/init') return send(200, await initWorkspace(b.year));
+        if (url.pathname === '/api/hledger-path') return send(200, await configureHledgerPath(b.path));
         if (url.pathname === '/api/save') return send(200, await saveJournal(b));
         if (url.pathname === '/api/report') return send(200, await report(b));
         if (url.pathname === '/api/import-preview') return send(200, await importPreview(b));
@@ -288,7 +347,7 @@ function createApp({ workspace, port = 8765, hledgerBin = process.env.HLEDGER_BI
       send(404, { error: 'Not found.' });
     } catch (e) { send(e.status || 500, { error: e.status ? e.message : 'Internal error: ' + e.message }); }
   });
-  return { server, workspace, initWorkspace, journal, saveJournal, report, status, gitStatus };
+  return { server, workspace, initWorkspace, journal, saveJournal, report, status, gitStatus, configureHledgerPath };
 }
 
 if (require.main === module) {
@@ -301,6 +360,19 @@ if (require.main === module) {
     process.exit(1);
   }
   const app = createApp({ workspace, port });
-  app.server.listen(port, '127.0.0.1', () => console.log(`hledger-webuix ready at http://127.0.0.1:${port} (workspace: ${app.workspace})`));
+  app.server.listen(port, '127.0.0.1', () => {
+    const url = `http://127.0.0.1:${port}/`;
+    console.log(`hledger-webuix ready at ${url} (workspace: ${app.workspace})`);
+    if (args.includes('--open')) {
+      const opener = process.platform === 'win32'
+        ? ['cmd.exe', ['/d', '/s', '/c', `start "" "${url}"`]]
+        : process.platform === 'darwin' ? ['open', [url]] : ['xdg-open', [url]];
+      try {
+        const child = spawn(opener[0], opener[1], { detached: true, stdio: 'ignore', windowsHide: true });
+        child.on('error', () => console.warn('Could not open browser automatically. Open ' + url));
+        child.unref();
+      } catch { console.warn('Could not open browser automatically. Open ' + url); }
+    }
+  });
 }
 module.exports = { createApp, runCommand };

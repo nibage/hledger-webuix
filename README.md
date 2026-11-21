@@ -8,13 +8,32 @@ This is a substantial rework of the original standalone HTML proof of concept. I
 
 ## Quick start
 
+### One-click launchers (Windows and Linux)
+
+- **Windows:** Double-click **`start.bat`** in the repository folder. It checks whether Node.js (version 20+) is installed. If not, it displays **"please install node.js"**, a link to the official download, and short setup steps. Otherwise it starts the server and automatically opens the browser at **http://127.0.0.1:8765/** once the server is listening. Leave the console window open until you're done.
+- **Linux:** Run `chmod +x start.sh` once, then `./start.sh`. It performs the same Node.js check, starts the server and tries to open the browser with `xdg-open` (or `open` on macOS). If opening the browser fails, visit **http://127.0.0.1:8765/** manually.
+
+By default, both launchers use a **private finance workspace**, separate from the program's source code:
+- Windows: `%USERPROFILE%\\Documents\\hledger-finances`
+- Linux: `~/Documents/hledger-finances`
+
+Set `HLEDGER_WORKSPACE` before launching to choose another folder (for example in PowerShell, `$env:HLEDGER_WORKSPACE = 'D:\\Accounting'`). Scripts do **not** install Node.js, hledger or Git, and do **not** create accounting files until you explicitly choose **Create folders** in the UI.
+
+### Install dependencies
+
 Install:
 
 - **Node.js 20+** ([nodejs.org](https://nodejs.org/))
 - **hledger CLI** ([installation guide](https://hledger.org/install.html))
 - **Git** (optional, for manual history)
 
-Ensure `node --version`, `hledger --version`, and `git --version` work in your terminal. Then, from this repo:
+On Windows, download the **Node.js LTS .msi** installer from [nodejs.org/en/download](https://nodejs.org/en/download), keep **Add to PATH** enabled, finish installation, open a new PowerShell and run `node --version` and `npm --version`.
+
+The app opens even if hledger is missing. The header shows the detected **Node.js version** and **hledger status/version**. If hledger is not on PATH, click **hledger path** in the header and enter the **absolute path to hledger.exe** (Windows) or `hledger` (Linux), then click **Save path & check**. Only a working executable whose `--version` output identifies it as hledger is accepted. The path is saved in the private workspace's `.webuix/settings.json` (ignored by Git). Use **Use PATH** to remove this override. No ledger file is changed by setting the executable.
+
+The version display tells you what's installed, **not** that all versions are certified compatible. Only the preliminary hledger 1.52 CLI integration is currently targeted.
+
+Ensure `node --version`, `hledger --version` (or a custom hledger path) and optionally `git --version` work. You can use the launchers above, or start from this repo manually:
 
 ```sh
 node server.js --workspace "/path/to/your-private-finances"
@@ -26,7 +45,7 @@ On Windows (PowerShell):
 node .\server.js --workspace "C:\Users\YOU\Documents\finances"
 ```
 
-Visit **http://127.0.0.1:8765**. Click **Create folders** once to create the layout (existing files are never overwritten). Choose a year, edit the journal and click **Save & validate**. The browser displays the detected `hledger --version` in its header and uses `hledger` for all reporting.
+Visit **http://127.0.0.1:8765**. The manual command will not auto-open your browser; use `--open` if desired. Click **Create folders** once to create the layout (existing files are never overwritten). Choose a year, edit the journal and click **Save & validate**. The browser displays the detected `hledger --version` in its header and uses `hledger` for all reporting.
 
 This server binds **only to localhost**. There is no cloud service, no npm dependency, and no automatic Git push. Do not expose its port to other machines or the public internet. If `hledger` or Git are not on PATH, point the backend at a local executable with `HLEDGER_BIN` and/or `GIT_BIN` environment variables.
 
