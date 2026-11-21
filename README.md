@@ -6,6 +6,26 @@ This is a substantial rework of the original standalone HTML proof of concept. I
 
 > **Early development release (webuix 0.2.0).** Do not rely on it as the only copy of important financial data. Test with an example journal first. This is not a certified tax/accounting solution. Compatibility with every hledger release and every journal feature has not been established.
 
+## Packaging recommendation
+
+The current source repo intentionally does **not** vendor Node.js or hledger binaries. For future releases, we plan two distribution modes: (1) a small source/installer package that uses installed Node.js and hledger, and (2) self-contained **portable ZIP/TAR packages per OS and CPU architecture** bundling unmodified, pinned upstream runtime binaries. Bundled runtime updates should be handled in a separate release pipeline, with version/hash verification, security patch tracking and licence notices; **never** check banking data or vendor executables into the public source repository. Keep the private finance workspace outside the app folder so updates cannot overwrite it. This is a design proposal, **not yet an implemented bundled release**.
+
+## Windows: installing hledger without Scoop
+
+First check whether Windows Package Manager is available in PowerShell: `winget --version`. It is supplied by Windows **App Installer** on most Windows 11 / recent Windows 10 installations. If available, run `winget search hledger`, then inspect the exact package/version before installing. For the UI's preliminary **1.52.x** CLI target, you can use the official release archive directly without any package manager:
+
+```powershell
+$dest = "$env:LOCALAPPDATA\Programs\hledger"
+New-Item -ItemType Directory -Force -Path $dest | Out-Null
+Invoke-WebRequest "https://github.com/hledgerorg/hledger/releases/download/1.52.4/hledger-windows-x64.zip" -OutFile "$env:TEMP\hledger-windows-x64.zip"
+Expand-Archive "$env:TEMP\hledger-windows-x64.zip" -DestinationPath $dest -Force
+& "$dest\hledger.exe" --version
+```
+
+This follows the [official 1.52.4 release instructions](https://github.com/hledgerorg/hledger/releases/tag/1.52.4), with a user-local destination. Open the app, choose **hledger path**, and enter the full path `C:\Users\YOUR_USER\AppData\Local\Programs\hledger\hledger.exe`. You do not need to edit `PATH` because the app remembers the validated binary location. Newer hledger versions are not yet fully compatibility-tested against the UI.
+
+The app also includes its own distinctive SVG favicon. The header uses a stable status row and reserves scrollbar space, so moving between sidebar tabs does not shift or recenter the content when the page length changes.
+
 ## Quick start
 
 ### One-click launchers (Windows and Linux)

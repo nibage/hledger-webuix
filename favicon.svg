@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="name">
+  <title id="name">hledger webuix</title>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#161D25"/>
+  <rect x="3" y="3" width="58" height="58" rx="13" fill="none" stroke="#3D4750" stroke-width="2"/>
+  <path d="M17 14v36M17 32h21M38 14v36" fill="none" stroke="#E7C69A" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M47 20h7M47 32h7M47 44h7" fill="none" stroke="#88D3B5" stroke-width="4" stroke-linecap="round"/>
+</svg>
