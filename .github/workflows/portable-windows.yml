@@ -10,7 +10,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Download pinned, hash-verified runtimes and package
         shell: pwsh
-        run: ./scripts/build-portable-windows.ps1
+        run: ./__hledgerui/scripts/build-portable-windows.ps1
       - uses: actions/upload-artifact@v4
         with:
           name: hledger-webuix-portable-win-x64

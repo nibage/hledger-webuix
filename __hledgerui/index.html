@@ -3,16 +3,25 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>hledger / webuix</title>
-<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<script>if (location.protocol === "file:") document.documentElement.classList.add("file-mode");</script>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <style>
 :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;font-size:14px;color-scheme:dark;--bg:#101419;--panel:#1a2027;--panel2:#222a32;--input:#141a20;--text:#ecf0ee;--sub:#abb4b7;--muted:#7f8d91;--line:#364046;--accent:#d8b48d;--accent2:#413226;--positive:#8accb1;--negative:#e99a9a;--shade:rgba(0,0,0,.2);--danger:#ef9a9a}
 html[data-theme="light"]{color-scheme:light;--bg:#f5f3ef;--panel:#fffefb;--panel2:#f1eeea;--input:#f9f8f6;--text:#282932;--sub:#53555d;--muted:#7a7e85;--line:#dad7d2;--accent:#883c53;--accent2:#f4e7ec;--positive:#286e53;--negative:#a73647;--shade:rgba(40,35,35,.06);--danger:#a73647}
 html{overflow-y:scroll;scrollbar-gutter:stable}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text)}button,input,textarea,select{font:inherit}button{cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}a{color:var(--accent)}.app{min-height:100vh;display:grid;grid-template-columns:222px minmax(0,1fr)}aside{background:var(--panel);border-right:1px solid var(--line);padding:24px 14px;display:flex;flex-direction:column;gap:20px}.brand{padding:0 12px;font-size:18px;font-weight:750;letter-spacing:-.05em}.brand span{color:var(--accent)}.tiny{color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}.nav{display:grid;gap:4px}.nav button{background:transparent;text-align:left;border:0;border-radius:8px;color:var(--sub);padding:11px 13px;display:flex;align-items:center;gap:12px}.nav button.active{background:var(--accent2);color:var(--accent);font-weight:700}.nav button:hover:not(.active){background:var(--panel2);color:var(--text)}.sidefooter{margin-top:auto;padding:12px;border-top:1px solid var(--line);color:var(--muted);font-size:11px;line-height:1.7;overflow-wrap:anywhere}main{min-width:0;padding:0 28px 48px}header{min-height:112px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"page actions" "statuses statuses";gap:12px 16px;align-items:center;padding:14px 0}.breadcrumb{grid-area:page;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}.header-actions{grid-area:actions;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}.header-status{grid-area:statuses;display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:30px}.pill{padding:6px 10px;font-size:11px;border:1px solid var(--line);border-radius:100px;color:var(--sub);white-space:nowrap}.pill.ok{color:var(--positive)}.pill.bad{color:var(--negative)}.page{max-width:1220px;margin:0 auto}.panel{display:none;padding-top:32px}.panel.active{display:block}.eyebrow{font-size:11px;text-transform:uppercase;color:var(--accent);font-weight:700;letter-spacing:.14em}.heading{font-family:Georgia,'Times New Roman',serif;font-size:35px;font-weight:400;letter-spacing:-.035em;margin:9px 0 8px}.subtitle{color:var(--sub);margin:0 0 25px;line-height:1.6}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.cards3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.card{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:20px;min-width:0}.card h3{font-size:16px;margin:0 0 8px}.card p{color:var(--sub);line-height:1.6;margin:6px 0 0}.card .value{font-size:27px;font-weight:750;letter-spacing:-.04em;margin:12px 0 3px}.toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.btn{background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 13px;font-weight:650;font-size:12px}.btn:hover{border-color:var(--accent)}.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--bg)}html[data-theme="light"] .btn.primary{color:white}.btn.danger{color:var(--negative)}.field{display:grid;gap:7px;color:var(--sub);font-size:12px;font-weight:650}.field input,.field select,.field textarea,select.inp,input.inp{background:var(--input);border:1px solid var(--line);color:var(--text);padding:10px 11px;border-radius:8px;min-width:0;max-width:100%}.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent)}.note{font-size:12px;color:var(--sub);line-height:1.65;margin:10px 0}.danger-note{border-left:3px solid var(--negative);padding:12px 15px;background:var(--panel2);font-size:12px;color:var(--sub);line-height:1.6}.mono{font-family:ui-monospace,SFMono-Regular,Consolas,'Liberation Mono',monospace;font-size:12px}.output{white-space:pre-wrap;overflow-wrap:anywhere;max-height:62vh;overflow:auto;background:var(--input);border:1px solid var(--line);border-radius:10px;padding:17px;line-height:1.65;margin:0;min-height:90px}.code-editor{background:var(--input);border:1px solid var(--line);border-radius:10px;width:100%;min-height:480px;resize:vertical;color:var(--text);padding:18px;line-height:1.7;tab-size:4;white-space:pre;overflow:auto}.table{width:100%;border-collapse:collapse;font-size:12px;text-align:left}.table th,.table td{padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:top}.table th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em}.table td{overflow-wrap:anywhere}.section-title{font-size:18px;font-weight:700;margin:30px 0 12px}.status{font-size:12px;color:var(--sub)}.status.unsaved{color:var(--accent)}.empty{color:var(--muted);font-style:italic}.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(250px,340px);gap:16px;align-items:start}.list{list-style:none;margin:0;padding:0}.list li{padding:9px 0;border-bottom:1px solid var(--line);font-size:12px;overflow-wrap:anywhere}.list li:last-child{border:0}.file-count{color:var(--muted);font-size:12px}.hidden{display:none!important}.toast{position:fixed;right:20px;bottom:20px;background:var(--panel2);color:var(--text);border:1px solid var(--accent);padding:13px 16px;border-radius:10px;box-shadow:0 10px 36px var(--shade);font-size:13px;max-width:min(430px,95vw);z-index:5;white-space:pre-wrap}.tx-fields{display:grid;grid-template-columns:160px 1fr 140px;gap:10px;margin-bottom:12px}.post-row{display:grid;grid-template-columns:minmax(150px,1fr) minmax(120px,1fr) 34px;gap:9px;margin:8px 0}.post-row input{width:100%}.version-line{font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.file-launch-banner{display:none;position:fixed;z-index:20;top:16px;left:50%;transform:translateX(-50%);width:min(640px,calc(100% - 28px));background:var(--panel);border:2px solid var(--accent);border-radius:12px;padding:17px 20px;box-shadow:0 14px 48px var(--shade);line-height:1.6}
+.file-launch-banner strong{font-size:15px;color:var(--text);display:block}.file-launch-banner span{display:block;color:var(--sub);margin-top:5px;font-size:13px}
+html.file-mode .file-launch-banner{display:block}
+html.file-mode .app{opacity:.45;pointer-events:none}
 @media(max-width:950px){.app{grid-template-columns:1fr}aside{padding:10px 15px;gap:10px;border-right:0;border-bottom:1px solid var(--line)}.nav{display:flex;overflow-x:auto}.nav button{white-space:nowrap}.sidefooter{display:none}main{padding:0 15px 32px}.grid,.cards3,.split{grid-template-columns:1fr}.heading{font-size:29px}}
 @media(max-width:720px){header{grid-template-columns:minmax(0,1fr);grid-template-areas:"page" "actions" "statuses"}.header-actions{justify-content:flex-start}}@media(max-width:540px){header{padding:12px 0}.tx-fields{grid-template-columns:1fr}.post-row{grid-template-columns:1fr 1fr 34px}.card{padding:15px}}
 </style>
 </head>
 <body>
+<div class="file-launch-banner" id="file-launch-banner" role="alert" aria-live="assertive">
+  <strong>please open with start script to start node.js server</strong>
+  <span>Windows: open <code>start.bat</code> · Linux: run <code>./start.sh</code> in the __hledgerui folder. The browser will open at localhost automatically.</span>
+</div>
 <div class="app">
 <aside>
   <div class="brand">hledger<span> / webuix</span><div class="tiny" style="margin-top:8px">LOCAL · CLI-POWERED</div></div>
@@ -23,7 +32,7 @@ html{overflow-y:scroll;scrollbar-gutter:stable}*{box-sizing:border-box}body{marg
     <button data-tab="imports">⇩ &nbsp; Bank imports & files</button>
     <button data-tab="automations">⚙ &nbsp; Automations</button>
     <button data-tab="git">⑂ &nbsp; Git history</button>
-    <button data-tab="settings">⚙ &nbsp; Settings & updates</button>
+    <button data-tab="settings">⚙ &nbsp; Settings</button>
   </nav>
   <div class="sidefooter">webuix <span id="app-version">0.2.0</span><div id="side-workspace">Workspace not connected</div><div>No cloud sync. Runs locally.</div></div>
 </aside>
@@ -64,9 +73,9 @@ html{overflow-y:scroll;scrollbar-gutter:stable}*{box-sizing:border-box}body{marg
   <section id="tab-automations" class="panel"><div class="eyebrow">Controlled local scripts</div><h1 class="heading">Automations</h1><p class="subtitle">Manage trusted Python, JavaScript, PowerShell or shell scripts for bank API integrations and data preparation.</p><div class="danger-note">Scripts run on your computer with your account's permissions. Only list scripts you trust in <code>automations/scripts.json</code>. Running requires an explicit confirmation. No scheduler and no API credentials are stored by the UI.</div><div id="scripts-list" class="grid" style="margin-top:18px"></div><h2 class="section-title">Last execution</h2><pre id="script-output" class="output mono">No script executed.</pre></section>
 
   <section id="tab-settings" class="panel">
-    <div class="eyebrow">Local components</div><h1 class="heading">Settings & runtime updates</h1>
-    <p class="subtitle">Manage hledger and approved portable runtimes independently. Your finance workspace is not modified during runtime updates.</p>
-    <div class="grid">
+    <div class="eyebrow">Local components</div><h1 class="heading">Settings</h1>
+    <p class="subtitle">Inspect the installed Node.js, hledger and Git versions, choose a custom hledger path, and manage optional portable runtimes. Accounting files remain separate from this program.</p>
+    <div class="cards3">
       <div class="card"><h3>Node.js runtime</h3>
         <p id="runtime-node-status" class="note" role="status">Checking Node.js…</p>
         <p class="note">Approved portable version: <strong id="runtime-node-target">—</strong>. A new runtime becomes active on the next start.</p>
@@ -76,6 +85,11 @@ html{overflow-y:scroll;scrollbar-gutter:stable}*{box-sizing:border-box}body{marg
         <p id="runtime-hledger-status" class="note" role="status">Checking hledger…</p>
         <p class="note">Approved portable version: <strong id="runtime-hledger-target">—</strong>. An explicit custom executable path takes priority over the bundled runtime.</p>
         <button id="runtime-update-hledger" class="btn primary" type="button">Install / update bundled hledger</button>
+      </div>
+      <div class="card"><h3>Git</h3>
+        <p id="runtime-git-status" class="note" role="status">Checking Git…</p>
+        <p id="runtime-git-repo" class="note">Local history status: checking…</p>
+        <p class="note">Optional bundled Git directory: <code>data/git/</code>. Bundled Git installation is not implemented yet. <a href="https://git-scm.com/downloads/win" target="_blank" rel="noopener noreferrer">Install Git for Windows</a>.</p>
       </div>
     </div>
     <p class="note" id="runtime-update-note">Checking portable update availability…</p>
@@ -118,6 +132,9 @@ $('hledger-detail').style.color=s.hledger.installed?'var(--positive)':'var(--neg
 $('node-detail').textContent='Node.js '+s.node.version+' · '+s.node.path;
 $('runtime-node-status').textContent=s.node.version+' · '+s.node.source+' · '+s.node.path;
 $('runtime-hledger-status').textContent=s.hledger.installed?(s.hledger.version+' · '+s.hledger.source+' · '+s.hledger.path):('Missing hledger · '+s.hledger.path);
+$('runtime-git-status').textContent=s.git.installed?(s.git.version+' · '+s.git.source+' · '+s.git.path):('Git missing · '+s.git.path);
+$('runtime-git-status').style.color=s.git.installed?'var(--positive)':'var(--negative)';
+$('runtime-git-repo').textContent='Finance workspace Git: '+(s.git.initialized?'initialized':'not initialized');
 $('runtime-node-target').textContent=s.runtime.target.node;
 $('runtime-hledger-target').textContent=s.runtime.target.hledger;
 $('runtime-update-node').disabled=!s.runtime.canUpdate;
@@ -162,7 +179,7 @@ $('theme-btn').addEventListener('click',()=>{const next=document.documentElement
 $('year-select').addEventListener('change',e=>chooseYear(e.target.value));$('init-btn').addEventListener('click',createWorkspace);$('save-btn').addEventListener('click',saveJournal);$('discard-btn').addEventListener('click',()=>{if(state.dirty&&!confirm('Discard all unsaved changes?'))return;$('journal-editor').value=state.original;setDirty(false);});$('journal-editor').addEventListener('input',()=>setDirty($('journal-editor').value!==state.original));$('check-btn').addEventListener('click',()=>act(async()=>{const r=await api('report',{command:'check'});toast(r.ok?'Whole ledger passes hledger check.':r.stderr||r.stdout||'Check failed.');}));$('report-run').addEventListener('click',()=>act(runReport));$('import-preview').addEventListener('click',previewImport);$('git-init').addEventListener('click',initGit);$('git-refresh').addEventListener('click',()=>act(loadGit));$('git-commit').addEventListener('click',commitGit);$('add-posting').addEventListener('click',postingRow);$('draft-tx').addEventListener('click',draftTransaction);
 window.addEventListener('beforeunload',e=>{if(state.dirty){e.preventDefault();e.returnValue='';}});
 const now=new Date();$('tx-date').value=[now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('-');postingRow();postingRow();setDirty(false);
-act(async()=>{await refreshStatus();await overview();});
+if (location.protocol !== 'file:') act(async()=>{await refreshStatus();await overview();});
 </script>
 </body>
 </html>

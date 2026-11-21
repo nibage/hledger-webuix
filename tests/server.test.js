@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
-const { createApp } = require('../server');
+const { createApp } = require('../__hledgerui/server');
 
 async function fixture(t) {
   const home = await fs.mkdtemp(path.join(os.tmpdir(), 'hledger-webuix-test-'));
@@ -171,8 +171,8 @@ test('reports Node version and persists a validated custom hledger path (includi
 test('launchers handle missing Node.js and start the server in open-browser mode', async () => {
   const projectRoot = path.join(__dirname, '..');
   const [bat, sh] = await Promise.all([
-    fs.readFile(path.join(projectRoot, 'start.bat'), 'utf8'),
-    fs.readFile(path.join(projectRoot, 'start.sh'), 'utf8')
+    fs.readFile(path.join(projectRoot, '__hledgerui', 'start.bat'), 'utf8'),
+    fs.readFile(path.join(projectRoot, '__hledgerui', 'start.sh'), 'utf8')
   ]);
   for (const source of [bat, sh]) {
     assert.match(source, /please install node\.js/i);
@@ -193,7 +193,7 @@ test('favicon is served as SVG and tab content has stable layout rules', async t
   const home = await fetch(base + '/');
   assert.equal(home.status, 200);
   const html = await home.text();
-  assert.match(html, /rel="icon" type="image\/svg\+xml" href="\/favicon.svg"/);
+  assert.match(html, /rel="icon" type="image\/svg\+xml" href="favicon.svg"/);
   assert.match(html, /scrollbar-gutter:stable/);
   assert.match(html, /grid-template-areas:"page actions" "statuses statuses"/);
   assert.match(html, /class="header-status"/);
@@ -207,7 +207,7 @@ test('portable runtime pins and settings surface are exposed without automatic c
   assert.equal(status.runtime.target.hledger, '1.52.4');
   assert.equal(status.runtime.platform, process.platform + '-' + process.arch);
   assert.equal(status.node.source, 'system');
-  const manifest = require('../runtime-manifest.json');
+  const manifest = require('../__hledgerui/runtime-manifest.json');
   for (const component of ['node','hledger']) {
     assert.match(manifest[component]['windows-x64'].url, /^https:\/\//);
     assert.match(manifest[component]['windows-x64'].sha256, /^[a-f0-9]{64}$/);
@@ -217,16 +217,59 @@ test('portable runtime pins and settings surface are exposed without automatic c
   assert.match(html, /id="runtime-update-node"/);
   assert.match(html, /id="runtime-update-hledger"/);
   assert.match(html, /api\('runtime-update'/);
-  const windowsUpdater = await fs.readFile(path.join(__dirname,'..','scripts','update-runtime.ps1'),'utf8');
+  const windowsUpdater = await fs.readFile(path.join(__dirname,'..','__hledgerui','scripts','update-runtime.ps1'),'utf8');
   assert.match(windowsUpdater, /Get-FileHash/);
   assert.match(windowsUpdater, /Wait-Process/);
   assert.match(windowsUpdater, /\.staging-/);
-  const launcher = await fs.readFile(path.join(__dirname,'..','start.bat'),'utf8');
-  assert.match(launcher, /runtime\\node\\win-x64\\active.txt/);
+  const launcher = await fs.readFile(path.join(__dirname,'..','__hledgerui','start.bat'),'utf8');
+  assert.match(launcher, /data\\node\\win-x64\\active.txt/);
   assert.match(launcher, /NODE_EXE/);
   if (process.platform !== 'win32') {
     const unsupported = await call('POST','runtime-update',{component:'node'});
     assert.equal(unsupported.status,400);
   }
-  await assert.rejects(fs.access(path.join(workspace,'runtime')));
+  await assert.rejects(fs.access(path.join(workspace,'data')));
+});
+
+test('portable directory layout, index file startup notice and Settings status', async t => {
+  const { call, base } = await fixture(t);
+  const status = (await call('GET', 'status')).body;
+  assert.equal(status.git.path, process.env.GIT_BIN || 'git');
+  assert.equal(status.git.bundledAvailable, false);
+  assert.ok(typeof status.git.version === 'string');
+  assert.ok(typeof status.git.installed === 'boolean');
+  const html = await (await fetch(base + '/index.html')).text();
+  assert.match(html, /id="tab-overview" class="panel active"/);
+  assert.match(html, /Your finances, your files/);
+  assert.match(html, /Quick balance overview/);
+  assert.match(html, /id="tab-settings"/);
+  for (const id of ['runtime-node-status','runtime-hledger-status','runtime-git-status','runtime-git-repo']) {
+    assert.match(html, new RegExp('id="' + id + '"'));
+  }
+  assert.match(html, /please open with start script to start node\.js server/);
+  assert.match(html, /location\.protocol === "file:"/);
+  assert.match(html, /if \(location\.protocol !== 'file:'\) act\(/);
+  assert.match(html, /class="file-launch-banner"/);
+  for (const component of ['node','hledger','git']) {
+    await fs.access(path.join(__dirname, '..', '__hledgerui','data',component,'.gitkeep'));
+  }
+  assert.equal((await fetch(base + '/hledger-webuix.html')).status, 404);
+});
+
+test('launch scripts use configured localhost port and browser opens after server listens', async () => {
+  const appRoot = path.join(__dirname, '..', '__hledgerui');
+  const [bat, sh, server] = await Promise.all([
+    fs.readFile(path.join(appRoot,'start.bat'), 'utf8'),
+    fs.readFile(path.join(appRoot,'start.sh'), 'utf8'),
+    fs.readFile(path.join(appRoot,'server.js'), 'utf8')
+  ]);
+  for (const launcher of [bat, sh]) {
+    assert.match(launcher, /HLEDGER_PORT/);
+    assert.match(launcher, /--port/);
+    assert.match(launcher, /--open/);
+    assert.match(launcher, /server\.js/);
+  }
+  assert.match(bat, /data\\node\\win-x64\\active.txt/);
+  assert.match(server, /Start-Process -FilePath/);
+  assert.ok(server.indexOf("app.server.listen(port") < server.indexOf("if (args.includes('--open'))"));
 });

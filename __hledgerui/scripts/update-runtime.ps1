@@ -33,7 +33,7 @@ if ($Component -eq 'node') {
         throw 'Unapproved hledger download URL.'
     }
 }
-$componentRoot = Join-Path $root "runtime\$Component\win-x64"
+$componentRoot = Join-Path $root "data\$Component\win-x64"
 $versionDir = "v$version"
 $installDir = Join-Path $componentRoot $versionDir
 $executableName = if ($Component -eq 'node') { 'node.exe' } else { 'hledger.exe' }
