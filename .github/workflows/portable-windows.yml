@@ -1,0 +1,19 @@
+name: Build portable Windows ZIP
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download pinned, hash-verified runtimes and package
+        shell: pwsh
+        run: ./scripts/build-portable-windows.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hledger-webuix-portable-win-x64
+          path: dist/hledger-webuix-portable-win-x64.zip
+          if-no-files-found: error
+          retention-days: 30

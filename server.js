@@ -9,6 +9,18 @@ const { spawn } = require('node:child_process');
 const { URL } = require('node:url');
 
 const APP_VERSION = '0.2.0';
+const PORTABLE_MANIFEST = require('./runtime-manifest.json');
+const PORTABLE_WINDOWS_X64 = process.platform === 'win32' && process.arch === 'x64';
+function portableBinary(component) {
+  if (!PORTABLE_WINDOWS_X64) return null;
+  const root = path.join(__dirname, 'runtime', component, 'win-x64');
+  let active = '';
+  try { active = fs.readFileSync(path.join(root, 'active.txt'), 'utf8').trim(); }
+  catch { return null; }
+  if (!/^v\d+\.\d+\.\d+$/.test(active)) return null;
+  const executable = path.join(root, active, component === 'node' ? 'node.exe' : 'hledger.exe');
+  return fs.existsSync(executable) ? executable : null;
+}
 const READ_COMMANDS = new Set(['print', 'balance', 'register', 'aregister', 'balancesheet', 'incomestatement', 'cashflow', 'accounts', 'payees', 'tags', 'prices', 'stats', 'files', 'check']);
 const PERIOD_COMMANDS = new Set(['balance', 'register', 'aregister', 'balancesheet', 'incomestatement', 'cashflow']);
 const YEAR_RE = /^(19|20|21)\d{2}$/;
@@ -88,7 +100,12 @@ function createApp({ workspace, port = 8765, hledgerBin = process.env.HLEDGER_BI
           return { binary: saved.hledgerPath, source: 'saved' };
       } catch { /* Invalid settings fall back to the startup executable. */ }
     }
-    return { binary: hledgerBin, source: process.env.HLEDGER_BIN ? 'environment' : 'PATH' };
+    if (process.env.HLEDGER_BIN || hledgerBin !== 'hledger') {
+      return { binary: hledgerBin, source: process.env.HLEDGER_BIN ? 'environment' : 'custom' };
+    }
+    const bundled = portableBinary('hledger');
+    if (bundled) return { binary: bundled, source: 'bundled' };
+    return { binary: hledgerBin, source: 'PATH' };
   }
   async function hledger(args, timeout) {
     const selected = await selectedHledger();
@@ -170,7 +187,17 @@ function createApp({ workspace, port = 8765, hledgerBin = process.env.HLEDGER_BI
     const gitRoot = fs.existsSync(path.join(workspace, '.git'));
     return {
       appVersion: APP_VERSION, workspace, initialized: tracked !== null, years: yr, token,
-      node: { installed: true, version: process.version, path: process.execPath },
+      node: {
+        installed: true, version: process.version, path: process.execPath,
+        source: PORTABLE_WINDOWS_X64 && path.normalize(process.execPath).toLowerCase().startsWith(
+          (path.join(__dirname, 'runtime', 'node', 'win-x64') + path.sep).toLowerCase()
+        ) ? 'bundled' : 'system'
+      },
+      runtime: {
+        canUpdate: PORTABLE_WINDOWS_X64,
+        platform: process.platform + '-' + process.arch,
+        target: { node: PORTABLE_MANIFEST.node.version, hledger: PORTABLE_MANIFEST.hledger.version }
+      },
       hledger: {
         installed, version: installed ? detectedVersion : '',
         path: selected.binary, source: selected.source,
@@ -306,6 +333,24 @@ function createApp({ workspace, port = 8765, hledgerBin = process.env.HLEDGER_BI
       return { changed: true, message: result.stdout };
     });
   }
+  async function runPortableUpdater(component) {
+    if (!PORTABLE_WINDOWS_X64) fail('Portable runtime updating is currently supported on Windows x64 only.', 400);
+    if (component !== 'node' && component !== 'hledger') fail('Unknown runtime component.');
+    const updater = path.join(__dirname, 'scripts', 'update-runtime.ps1');
+    if (!fs.existsSync(updater)) fail('Portable runtime updater script missing.', 500);
+    return new Promise((resolve, reject) => {
+      const child = spawn('powershell.exe', [
+        '-NoProfile', '-NoExit', '-ExecutionPolicy', 'Bypass', '-File', updater,
+        '-Component', component, '-ServerProcessId', String(process.pid)
+      ], { detached: true, windowsHide: false, stdio: 'ignore' });
+      child.once('error', e => reject(Object.assign(new Error('Could not start updater: ' + e.message), { status: 422 })));
+      child.once('spawn', () => {
+        child.unref();
+        resolve({ started: true, component, target: PORTABLE_MANIFEST[component].version,
+          note: 'Updater opened in a separate PowerShell window. Confirm there, then stop the server with Ctrl+C. The updater waits for the server to exit before replacing runtimes. Start webuix again afterward.' });
+      });
+    });
+  }
   async function bodyJSON(req) {
     let total = 0, chunks = [];
     for await (const chunk of req) { total += chunk.length; if (total > MAX_BODY) fail('Request too large.', 413); chunks.push(chunk); }
@@ -347,6 +392,7 @@ function createApp({ workspace, port = 8765, hledgerBin = process.env.HLEDGER_BI
         const b = await bodyJSON(req);
         if (url.pathname === '/api/init') return send(200, await initWorkspace(b.year));
         if (url.pathname === '/api/hledger-path') return send(200, await configureHledgerPath(b.path));
+        if (url.pathname === '/api/runtime-update') return send(200, await runPortableUpdater(b.component));
         if (url.pathname === '/api/save') return send(200, await saveJournal(b));
         if (url.pathname === '/api/report') return send(200, await report(b));
         if (url.pathname === '/api/import-preview') return send(200, await importPreview(b));

@@ -6,9 +6,24 @@ This is a substantial rework of the original standalone HTML proof of concept. I
 
 > **Early development release (webuix 0.2.0).** Do not rely on it as the only copy of important financial data. Test with an example journal first. This is not a certified tax/accounting solution. Compatibility with every hledger release and every journal feature has not been established.
 
+## Bundled Windows runtimes & independent updates
+
+**Windows x64 portable mode** is supported by pinned, separately downloadable runtimes. The public source checkout intentionally contains **no prebundled executables**. Use the two buttons on the **Settings & updates** page to install or update **Node.js** and **hledger** independently into `runtime/node/win-x64/` and `runtime/hledger/win-x64/`. The pinned versions are defined in `runtime-manifest.json`. As of this release, they are **Node.js 24.22.3 (LTS)** and **hledger 1.52.4**, each downloaded over HTTPS and verified against a **reviewed SHA-256** before extraction.
+
+Each button launches a separate PowerShell window; you must confirm the operation there, then **stop the currently running UI server with Ctrl+C**. The updater waits for its process to exit before activating the new runtime. The previous runtime version directory remains available for a manual rollback. On the next `start.bat`, the program prefers bundled Node.js over the system installation. The server prefers bundled hledger over PATH, except when an explicit executable path or `HLEDGER_BIN` was configured. Account files are unaffected.
+
+If you want to stage a runtime before first launch (does not need Node.js), run in PowerShell:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\update-runtime.ps1 -Component node
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\update-runtime.ps1 -Component hledger
+```
+
+These commands install only the reviewed versions. To ship an updated version, update its URL, version and hash in `runtime-manifest.json` after reviewing the upstream release and testing CLI compatibility. The buttons **do not silently upgrade to arbitrary latest releases**. To build a fully self-contained release ZIP on Windows x64, run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-portable-windows.ps1` or trigger the **Build portable Windows ZIP** GitHub Actions workflow manually and download its ZIP artifact. Do not copy `runtime/` binaries into source control; its downloaded contents are ignored. These scripts are Windows x64 only; Linux currently continues using system-installed runtimes.
+
 ## Packaging recommendation
 
-The current source repo intentionally does **not** vendor Node.js or hledger binaries. For future releases, we plan two distribution modes: (1) a small source/installer package that uses installed Node.js and hledger, and (2) self-contained **portable ZIP/TAR packages per OS and CPU architecture** bundling unmodified, pinned upstream runtime binaries. Bundled runtime updates should be handled in a separate release pipeline, with version/hash verification, security patch tracking and licence notices; **never** check banking data or vendor executables into the public source repository. Keep the private finance workspace outside the app folder so updates cannot overwrite it. This is a design proposal, **not yet an implemented bundled release**.
+The source repo intentionally does **not** vendor Node.js or hledger binaries. Two Windows distribution modes are now possible: (1) a small source package that uses installed Node.js and hledger, and (2) a self-contained **Windows x64 portable ZIP** built by the provided workflow that bundles verified upstream runtime binaries. Linux portable packaging remains a future milestone. Bundled runtime updates should be handled in a separate release pipeline, with version/hash verification, security patch tracking and licence notices; **never** check banking data or vendor executables into the public source repository. Keep the private finance workspace outside the app folder so updates cannot overwrite it. This is a design proposal, **not yet an implemented bundled release**.
 
 ## Windows: installing hledger without Scoop
 
@@ -49,7 +64,7 @@ Install:
 
 On Windows, download the **Node.js LTS .msi** installer from [nodejs.org/en/download](https://nodejs.org/en/download), keep **Add to PATH** enabled, finish installation, open a new PowerShell and run `node --version` and `npm --version`.
 
-The app opens even if hledger is missing. The header shows the detected **Node.js version** and **hledger status/version**. If hledger is not on PATH, click **hledger path** in the header and enter the **absolute path to hledger.exe** (Windows) or `hledger` (Linux), then click **Save path & check**. Only a working executable whose `--version` output identifies it as hledger is accepted. The path is saved in the private workspace's `.webuix/settings.json` (ignored by Git). Use **Use PATH** to remove this override. No ledger file is changed by setting the executable.
+The app opens even if hledger is missing. The header shows the detected **Node.js version** and **hledger status/version**. If hledger is not on PATH, click **hledger path** in the header and enter the **absolute path to hledger.exe** (Windows) or `hledger` (Linux), then click **Save path & check**. Only a working executable whose `--version` output identifies it as hledger is accepted. The path is saved in the private workspace's `.webuix/settings.json` (ignored by Git). Use **Use auto-detect** to remove this override (auto-detect checks an explicit environment override, then bundled hledger, then PATH). No ledger file is changed by setting the executable.
 
 The version display tells you what's installed, **not** that all versions are certified compatible. Only the preliminary hledger 1.52 CLI integration is currently targeted.
 

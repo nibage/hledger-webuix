@@ -199,3 +199,34 @@ test('favicon is served as SVG and tab content has stable layout rules', async t
   assert.match(html, /class="header-status"/);
   assert.match(html, /if\(tab!==state.tab\)window.scrollTo\(0,0\)/);
 });
+
+test('portable runtime pins and settings surface are exposed without automatic changes', async t => {
+  const { call, base, workspace } = await fixture(t);
+  const status = (await call('GET','status')).body;
+  assert.equal(status.runtime.target.node, '24.22.3');
+  assert.equal(status.runtime.target.hledger, '1.52.4');
+  assert.equal(status.runtime.platform, process.platform + '-' + process.arch);
+  assert.equal(status.node.source, 'system');
+  const manifest = require('../runtime-manifest.json');
+  for (const component of ['node','hledger']) {
+    assert.match(manifest[component]['windows-x64'].url, /^https:\/\//);
+    assert.match(manifest[component]['windows-x64'].sha256, /^[a-f0-9]{64}$/);
+  }
+  const html = await (await fetch(base+'/')).text();
+  assert.match(html, /data-tab="settings"/);
+  assert.match(html, /id="runtime-update-node"/);
+  assert.match(html, /id="runtime-update-hledger"/);
+  assert.match(html, /api\('runtime-update'/);
+  const windowsUpdater = await fs.readFile(path.join(__dirname,'..','scripts','update-runtime.ps1'),'utf8');
+  assert.match(windowsUpdater, /Get-FileHash/);
+  assert.match(windowsUpdater, /Wait-Process/);
+  assert.match(windowsUpdater, /\.staging-/);
+  const launcher = await fs.readFile(path.join(__dirname,'..','start.bat'),'utf8');
+  assert.match(launcher, /runtime\\node\\win-x64\\active.txt/);
+  assert.match(launcher, /NODE_EXE/);
+  if (process.platform !== 'win32') {
+    const unsupported = await call('POST','runtime-update',{component:'node'});
+    assert.equal(unsupported.status,400);
+  }
+  await assert.rejects(fs.access(path.join(workspace,'runtime')));
+});
