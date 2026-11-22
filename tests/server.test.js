@@ -223,7 +223,7 @@ test('portable runtime pins and settings surface are exposed without automatic c
   assert.match(html, /api\('runtime-update'/);
   const windowsUpdater = await fs.readFile(path.join(__dirname,'..','__hledgerui','scripts','update-runtime.ps1'),'utf8');
   assert.match(windowsUpdater, /Get-FileHash/);
-  assert.match(windowsUpdater, /Wait-Process/);
+  assert.doesNotMatch(windowsUpdater, /Wait-Process/);
   assert.match(windowsUpdater, /\.staging-/);
   const launcher = await fs.readFile(path.join(__dirname,'..','__hledgerui','start.bat'),'utf8');
   assert.match(launcher, /data\\node\\win-x64\\active.txt/);
@@ -247,7 +247,7 @@ test('portable directory layout, index file startup notice and Settings status',
   assert.match(html, /Your finances, your files/);
   assert.match(html, /Quick balance overview/);
   assert.match(html, /id="tab-settings"/);
-  for (const id of ['runtime-node-status','runtime-hledger-status','runtime-git-status','runtime-git-repo']) {
+  for (const id of ['runtime-node-status','runtime-hledger-status','runtime-git-status','component-mode-git']) {
     assert.match(html, new RegExp('id="' + id + '"'));
   }
   assert.match(html, /please open with start script to start node\.js server/);

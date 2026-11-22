@@ -142,12 +142,13 @@ function createApp({ workspace, port = 8765, hledgerBin = process.env.HLEDGER_BI
     return {binary:gitBin,source:'system'};
   }
   async function selectedHledger(){
-    if(process.env.HLEDGER_BIN||hledgerBin!=='hledger')return {binary:hledgerBin,source:'environment'};
+    if(process.env.HLEDGER_BIN)return {binary:hledgerBin,source:'environment'};
     const c=await selection('hledger');
     if(c.mode==='custom')return {binary:c.path,source:'custom'};
     if(c.mode==='bundle')return {binary:portableBinary('hledger')||bundlePath('hledger'),source:'bundled'};
     const legacy=await fileIfExists(localSettingsFile);
     if(legacy)try{const v=JSON.parse(legacy);if(typeof v.hledgerPath==='string'&&path.isAbsolute(v.hledgerPath))return {binary:v.hledgerPath,source:'saved'};}catch{}
+    if(hledgerBin!=='hledger')return {binary:hledgerBin,source:'custom'};
     return {binary:hledgerBin,source:'system'};
   }
   async function hledger(args,timeout){const c=await selectedHledger();return logRun('hledger',c.binary,[...hledgerArgsPrefix,...args],{cwd:fs.existsSync(workspace)?workspace:__dirname,timeout});}
@@ -289,7 +290,7 @@ function createApp({ workspace, port = 8765, hledgerBin = process.env.HLEDGER_BI
   async function status(){
     const [hSelected,gSelected,h,g,yr,tracked,prefs,sysNode,sysHledger,sysGit,profileState]=await Promise.all([
       selectedHledger(),selectedGit(),hledger(['--version'],5000),git(['--version']),years(),fileIfExists(mainJournal),
-      settings(),findSystem('node'),findSystem('hledger'),findSystem('git'),profiles()
+      localSettings(),findSystem('node'),findSystem('hledger'),findSystem('git'),profiles()
     ]);
     const hVersion=(h.stdout||'').trim().split('\n')[0],gVersion=(g.stdout||'').trim().split('\n')[0];
     const hInstalled=h.ok&&/^hledger(?:\s|$)/.test(hVersion);
