@@ -9,7 +9,7 @@ const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
 const { URL } = require('node:url');
 
-const APP_VERSION = '0.2.1';
+const APP_VERSION = '0.2.2';
 const APP_DATA = path.join(__dirname, 'data');
 const PREF_FILE = path.join(APP_DATA, 'preferences.json');
 const PROFILE_FILE = path.join(APP_DATA, 'profiles.json');
@@ -196,31 +196,50 @@ function createApp({ workspace, port = 8765, hledgerBin = process.env.HLEDGER_BI
   }
 
   async function configureComponent({component, mode, executable}){
-    if(!['node','hledger','git'].includes(component)||!['system','bundle','custom'].includes(mode))fail('Unknown component or mode.');
+    if(!['node','hledger','git'].includes(component)||!['system','bundle','custom'].includes(mode))
+      fail('Unknown component or runtime source.');
     let custom='';
+    const current=await selection(component);
     if(mode==='custom'){
       if(typeof executable!=='string'||!path.isAbsolute(executable)||executable.length>1024||/[\r\n\0"%!^&|<>]/.test(executable))
         fail('Enter a valid absolute trusted executable path.');
       const st=await fsp.stat(executable).catch(()=>null);
-      if(!st?.isFile())fail('Executable not found.');
-      const r=await logRun(component,executable,['--version'],{timeout:7000});
-      const re=component==='node'?/^v\d+\.\d+/:component==='hledger'?/^hledger\s+\d+/:/^git version\s+/;
-      if(!r.ok||!re.test(r.stdout.trim()))fail('The selected file is not a working '+component+' executable.',422);
+      if(!st?.isFile())fail('Executable not found at that path.');
       custom=executable;
     }
-    if(mode==='system' && !await findSystem(component))fail('System '+component+' not found on PATH.',422);
+    const legacyHledger=component==='hledger' && (await fileIfExists(localSettingsFile))!==null;
+    if(!legacyHledger && current.mode===mode && (mode!=='custom'||current.path===custom))
+      return {saved:false,unchanged:true,restartRequired:false};
+    if(mode==='bundle' && !portableBinary(component)){
+      fail('The '+component+' bundle is not installed or active. Click Install / update bundle first; selecting its future path does not install it.',422);
+    }
+    const binary=mode==='system'?await findSystem(component):
+      mode==='bundle'?portableBinary(component):custom;
+    if(!binary)fail('System '+component+' not found on PATH. Install it, choose a custom executable, or install the bundle.',422);
+    const r=await logRun(component,binary,['--version'],{timeout:7000});
+    const match=component==='node'?/^v\d+\.\d+/:component==='hledger'?/^hledger\s+\d+/:/^git version\s+/;
+    if(!r.ok||!match.test(r.stdout.trim()))
+      fail('The selected '+component+' executable did not return a valid version.',422);
+    if(mode==='bundle' && !(component==='node'
+      ? r.stdout.trim().startsWith('v'+PORTABLE_MANIFEST.node.version)
+      : component==='hledger'
+        ? r.stdout.trim().startsWith('hledger '+PORTABLE_MANIFEST.hledger.version)
+        : r.stdout.trim().startsWith('git version '+PORTABLE_MANIFEST.git.version)))
+      fail('The installed bundle does not match the approved version. Run Install / update bundle again.',422);
     return mutate(async()=>{
       const all=await localSettings();
       all[component]={mode,path:custom};
       await writeJSON(localPreferencesFile,all);
       if(component==='node'){
+        // Node selection is read by the .bat launcher before the server exists.
         await fsp.mkdir(configDir,{recursive:true});
         await fsp.writeFile(path.join(configDir,'node-mode.txt'),mode+'\n');
         await fsp.writeFile(path.join(configDir,'node-path.txt'),custom+'\n');
       }
       if(component==='hledger')await fsp.rm(localSettingsFile,{force:true});
-      writeLog('Settings: '+component+' now uses '+mode+(custom?' '+custom:'')+(component==='node'?' (restart to apply)':''),'success');
-      return {saved:true,restartRequired:component==='node'};
+      writeLog('Settings: '+component+' source is now '+mode+(custom?' ('+custom+')':'')+
+        (component==='node'?' — restart required':''),'success');
+      return {saved:true,unchanged:false,restartRequired:component==='node'};
     });
   }
   async function profiles(){
@@ -307,6 +326,9 @@ function createApp({ workspace, port = 8765, hledgerBin = process.env.HLEDGER_BI
         systemPath:{node:sysNode,hledger:sysHledger,git:sysGit}[name]||'',
         bundlePath:portableBinary(name)||'',
         expectedBundlePath:PORTABLE_WINDOWS_X64?bundlePath(name):'',
+        bundleInstalled:!!portableBinary(name),
+        bundleDownloaded:PORTABLE_WINDOWS_X64&&fs.existsSync(bundlePath(name)),
+        systemInstalled:!!({node:sysNode,hledger:sysHledger,git:sysGit}[name]),
         target:PORTABLE_MANIFEST[name].version
       };
     }

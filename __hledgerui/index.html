@@ -17,6 +17,25 @@ html.file-mode .app{opacity:.45;pointer-events:none}
 #profile-card code{overflow-wrap:anywhere}
 @media(max-width:950px){.app{grid-template-columns:1fr}aside{padding:10px 15px;gap:10px;border-right:0;border-bottom:1px solid var(--line)}.nav{display:flex;overflow-x:auto}.nav button{white-space:nowrap}.sidefooter{display:none}main{padding:0 15px 32px}.grid,.cards3,.split{grid-template-columns:1fr}.heading{font-size:29px}}
 @media(max-width:720px){header{grid-template-columns:minmax(0,1fr);grid-template-areas:"page" "actions" "statuses"}.header-actions{justify-content:flex-start}}@media(max-width:540px){header{padding:12px 0}.tx-fields{grid-template-columns:1fr}.post-row{grid-template-columns:1fr 1fr 34px}.card{padding:15px}}
+
+/* Compact navigation header; selected year and installed component info live in the sidebar footer. */
+@media(min-width:951px){aside{position:sticky;top:0;height:100vh;overflow-y:auto;align-self:start}}
+.card .note{overflow-wrap:anywhere}
+.field input[readonly]{text-overflow:ellipsis}
+header{min-height:78px;display:flex;justify-content:space-between;gap:16px;align-items:center;padding:12px 0}
+.breadcrumb{font-family:Georgia,'Times New Roman',serif;font-size:35px;font-weight:400;letter-spacing:-.035em}
+.header-actions{justify-content:flex-end}
+.sidefooter{display:grid;gap:7px;font-size:11px}
+.footer-status{display:grid;gap:5px;margin:7px 0;border-top:1px solid var(--line);padding-top:9px}
+.footer-status>span{display:block;overflow-wrap:anywhere;line-height:1.45}
+.footer-year{display:flex;align-items:center;justify-content:space-between;gap:8px;font-weight:600;color:var(--sub)}
+.footer-year select{font-size:11px;width:92px;min-width:0;padding:5px;border-radius:6px;background:var(--input);color:var(--text);border:1px solid var(--line)}
+#engine-pill{color:var(--sub)}#engine-pill.ok{color:var(--positive)}#engine-pill.bad{color:var(--negative)}
+.runtime-path-hint{min-height:36px;overflow-wrap:anywhere;font-size:11px}
+.field input[readonly]{opacity:.82;cursor:default}
+.btn:disabled,.btn.primary:disabled{opacity:.37;cursor:not-allowed;border-color:var(--line)}
+@media(max-width:950px){.sidefooter{display:grid;padding:10px 3px}.footer-status{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 16px}.breadcrumb{font-size:29px}header{min-height:70px}}
+@media(max-width:540px){.footer-status{grid-template-columns:1fr}.header-actions{justify-content:flex-end}}
 </style>
 </head>
 <body>
@@ -36,17 +55,25 @@ html.file-mode .app{opacity:.45;pointer-events:none}
     <button data-tab="git">⑂ &nbsp; Git history</button>
     <button data-tab="settings">⚙ &nbsp; Settings</button>
   </nav>
-  <div class="sidefooter">webuix <span id="app-version">0.2.0</span><div id="side-workspace">Workspace not connected</div><div>No cloud sync. Runs locally.</div></div>
+  <div class="sidefooter">
+    <div>webuix <span id="app-version">0.2.2</span></div>
+    <div id="side-workspace">Workspace not connected</div>
+    <div class="footer-status">
+      <label class="footer-year">Year <select id="year-select" class="inp" aria-label="Accounting year"></select></label>
+      <span id="year-tag">No year</span>
+      <span id="engine-pill">Checking hledger…</span>
+      <span id="node-pill">Checking Node.js…</span>
+      <span title="Designed for the hledger 1.52.x CLI. This is not certified accounting software.">Target CLI: 1.52.x · experimental</span>
+    </div>
+    <div>No cloud sync. Runs locally.</div>
+  </div>
 </aside>
 <main><div class="page">
   <header>
     <span class="breadcrumb" id="page-name">Overview</span>
-    <div class="header-actions"><label class="field" style="display:flex;align-items:center;gap:7px">Year <select id="year-select" class="inp" aria-label="Accounting year"></select></label><button class="btn" id="theme-btn" title="Switch theme">☼ Theme</button></div>
-    <div class="header-status" aria-label="Application status"><span class="pill" id="year-tag">No year</span><span class="pill" id="engine-pill">Checking hledger…</span><span class="pill" id="node-pill">Checking Node.js…</span><span class="pill" title="Designed for the documented hledger 1.52.x CLI; compatibility is preliminary and not certified.">Target CLI: 1.52.x · experimental</span></div>
+    <div class="header-actions"><button class="btn" id="theme-btn" title="Switch theme">☼ Theme</button></div>
   </header>
   <section id="tab-overview" class="panel active">
-    <div class="eyebrow">Workspace</div><h1 class="heading">Your finances, your files.</h1>
-    <p class="subtitle">Open, inspect and manage hledger journals through the actual command-line engine. The interface never writes while you type.</p>
     <div class="card" id="setup-card"><h3>Initialize this workspace</h3><p>Creates a year-based folder structure without overwriting files. Your finance workspace stays outside the application repository.</p>
       <div class="row" style="margin-top:14px"><label class="field">First year <input id="setup-year" value="2026" type="number" min="1900" max="2199"></label><button id="init-btn" class="btn primary" style="align-self:end">Create folders</button></div>
     </div>
@@ -105,9 +132,10 @@ html.file-mode .app{opacity:.45;pointer-events:none}
   </label>
   <label class="field" style="margin-top:12px">Executable path
     <input class="inp mono" type="text" id="component-path-node" spellcheck="false" autocomplete="off" aria-label="Node.js executable path">
+  <p class="note runtime-path-hint" id="runtime-node-detail" role="status">Loading available executable paths…</p>
   </label>
   <div class="row" style="margin-top:12px">
-    <button class="btn" id="component-save-node">Save path / source</button>
+    <button class="btn" id="component-save-node" disabled>Save path / source</button>
     <button class="btn primary" id="runtime-update-node">Install / update bundle</button>
   </div>
   <p class="note">Pinned bundled version: <strong id="runtime-node-target">—</strong>. <a href="https://nodejs.org/en/download" target="_blank" rel="noopener noreferrer">Official download</a>.</p>
@@ -123,9 +151,10 @@ html.file-mode .app{opacity:.45;pointer-events:none}
   </label>
   <label class="field" style="margin-top:12px">Executable path
     <input class="inp mono" type="text" id="component-path-hledger" spellcheck="false" autocomplete="off" aria-label="hledger executable path">
+  <p class="note runtime-path-hint" id="runtime-hledger-detail" role="status">Loading available executable paths…</p>
   </label>
   <div class="row" style="margin-top:12px">
-    <button class="btn" id="component-save-hledger">Save path / source</button>
+    <button class="btn" id="component-save-hledger" disabled>Save path / source</button>
     <button class="btn primary" id="runtime-update-hledger">Install / update bundle</button>
   </div>
   <p class="note">Pinned bundled version: <strong id="runtime-hledger-target">—</strong>. <a href="https://hledger.org/install.html" target="_blank" rel="noopener noreferrer">Official download</a>.</p>
@@ -141,15 +170,16 @@ html.file-mode .app{opacity:.45;pointer-events:none}
   </label>
   <label class="field" style="margin-top:12px">Executable path
     <input class="inp mono" type="text" id="component-path-git" spellcheck="false" autocomplete="off" aria-label="Git executable path">
+  <p class="note runtime-path-hint" id="runtime-git-detail" role="status">Loading available executable paths…</p>
   </label>
   <div class="row" style="margin-top:12px">
-    <button class="btn" id="component-save-git">Save path / source</button>
+    <button class="btn" id="component-save-git" disabled>Save path / source</button>
     <button class="btn primary" id="runtime-update-git">Install / update bundle</button>
   </div>
   <p class="note">Pinned bundled version: <strong id="runtime-git-target">—</strong>. <a href="https://git-scm.com/install/windows" target="_blank" rel="noopener noreferrer">Official download</a>.</p>
 </div>
     </div>
-    <p class="note" id="runtime-update-note">Checking runtime update availability…</p>
+    <div class="row" style="justify-content:space-between;margin-top:12px"><p class="note" id="runtime-update-note" role="status">Loading runtime status…</p><button class="btn" id="runtime-status-refresh" type="button">Refresh status</button></div>
     <div class="danger-note">Install / update starts an approved, SHA-256-verified PowerShell job in the background. Its live output appears in the command console below, not in a popup. Each executable is installed into its own versioned folder under <code>__hledgerui/data/</code>. The running Node.js process is not replaced; restart to activate the new one. No accounting journal files are modified.</div>
   </section>
   <section id="tab-git" class="panel"><div class="eyebrow">Version control</div><h1 class="heading">Git history</h1><p class="subtitle">Create a checkpoint when you decide your accounting data is ready. Editing and Save never create Git commits automatically.</p><div class="card"><div class="toolbar"><h3 style="margin:0">Local repository</h3><div class="row"><button class="btn" id="git-init">Initialize Git</button><button class="btn" id="git-refresh">Refresh</button></div></div><p class="note">Only <code>books/</code>, <code>rules/</code>, <code>automations/</code> and <code>.gitignore</code> are eligible for commits from this UI. Invoices, raw bank exports and secrets are excluded by default.</p><label class="field">Commit message<input id="commit-message" placeholder="Reconcile bank statements — November 2026"></label><button class="btn primary" style="margin-top:12px" id="git-commit">Commit checkpoint</button></div><div class="grid" style="margin-top:16px"><div class="card"><h3>Working tree</h3><pre id="git-changes" class="output mono">Not initialized</pre></div><div class="card"><h3>Recent commits</h3><pre id="git-history" class="output mono">No history</pre></div></div><p class="note">Git is not an encrypted backup. Never push private financial data to a public GitHub repository. Make separate backups of invoices and imported bank files; these are ignored by default.</p></section>
@@ -166,7 +196,7 @@ html.file-mode .app{opacity:.45;pointer-events:none}
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
-const state = { token: '', year: '', original: '', etag: '', dirty: false, initialized: false, status: null, files: null, tab: 'overview' };
+const state = { token: '', year: '', original: '', etag: '', dirty: false, initialized: false, status: null, files: null, tab: 'overview', componentEdited: {node:false,hledger:false,git:false} };
 let toastTimer;
 function toast(message){const el=$('toast');el.textContent=message;el.classList.remove('hidden');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.add('hidden'),4800);}
 async function api(route,data){const options=data===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json','X-Webuix-Token':state.token},body:JSON.stringify(data)};const r=await fetch('/api/'+route,options);let json;try{json=await r.json();}catch{throw new Error('Server response is not JSON.');}if(!r.ok)throw new Error(json.error||'Request failed.');return json;}
@@ -174,38 +204,96 @@ async function act(fn){try{return await fn();}catch(e){toast(e.message);return n
 function isReady(){if(!state.initialized){toast('Initialize your workspace first.');return false;}return true;}
 function setDirty(dirty){state.dirty=dirty;const el=$('journal-state');el.textContent=dirty?'● Unsaved changes — not written to disk':'✓ Saved version loaded';el.classList.toggle('unsaved',dirty);$('save-btn').disabled=!dirty;}
 function switchTab(tab){if(!document.getElementById('tab-'+tab))return;if(tab!==state.tab)window.scrollTo(0,0);state.tab=tab;document.querySelectorAll('[data-tab]').forEach(el=>el.classList.toggle('active',el.dataset.tab===tab));document.querySelectorAll('.panel').forEach(el=>el.classList.toggle('active',el.id==='tab-'+tab));$('page-name').textContent=tab.charAt(0).toUpperCase()+tab.slice(1);if(tab==='git')act(loadGit);if(tab==='imports')act(loadFiles);if(tab==='automations')act(loadScripts);if(tab==='reports'&&state.initialized)act(runReport);}
-async function refreshStatus(){
- const x=await api('status');state.token=x.token;state.status=x;state.initialized=x.initialized;
- $('app-version').textContent=x.appVersion;$('side-workspace').textContent=x.workspace;
- $('setup-card').classList.toggle('hidden',x.initialized);
- $('engine-pill').textContent=x.hledger.installed?x.hledger.version:'hledger missing';
- $('engine-pill').className='pill '+(x.hledger.installed?'ok':'bad');
- $('node-pill').textContent='Node.js '+x.node.version;
- $('card-engine').textContent=x.hledger.installed?(x.hledger.version.match(/\d+\.\d+(\.\d+)?/)||['Detected'])[0]:'Missing';
- $('card-engine-extra').textContent=x.hledger.installed?'hledger ready':'Configure hledger in Settings';
- $('card-years').textContent=String(x.years.length);$('card-git').textContent=x.git.initialized?'Enabled':'Not set up';
- for(const component of ['node','hledger','git']){
-   const c=x.runtime.components[component],mode=$('component-mode-'+component),field=$('component-path-'+component);
-   if(document.activeElement!==mode)mode.value=c.mode;
-   if(document.activeElement!==field)field.value=mode.value==='custom'?(c.customPath||''):mode.value==='bundle'?(c.bundlePath||c.expectedBundlePath):c.systemPath;
-   field.readOnly=mode.value!=='custom';
-   $('runtime-'+component+'target').textContent=c.target;
-   $('runtime-update-'+component).disabled=!x.runtime.canUpdate;
+function selectedRuntimePath(component, mode) {
+ const c=state.status?.runtime?.components?.[component];
+ if(!c)return '';
+ if(mode==='bundle')return c.bundleInstalled ? c.bundlePath : '';
+ if(mode==='system')return c.systemPath || '';
+ return c.customPath || '';
+}
+function updateSaveState(component) {
+ const c=state.status?.runtime?.components?.[component],button=$('component-save-'+component);
+ if(!c){button.disabled=true;return;}
+ const mode=$('component-mode-'+component).value;
+ const field=$('component-path-'+component);
+ field.readOnly=mode!=='custom';
+ if(mode==='bundle'&&!c.bundleInstalled)field.placeholder='Not installed — click Install / update bundle';
+ else if(mode==='system'&&!c.systemInstalled)field.placeholder='No system installation found on PATH';
+ else field.placeholder=mode==='custom'?'Enter the absolute path to the executable':'';
+ const changed=mode!==c.mode||(mode==='custom'&&field.value.trim()!==(c.customPath||''));
+ const valid=mode==='bundle'?c.bundleInstalled:mode==='system'?c.systemInstalled:!!field.value.trim();
+ button.disabled=!(changed&&valid);
+ button.title=!changed?'Nothing changed':!valid?(mode==='bundle'?'Install the bundle before selecting it':'Executable not available'):'Save the runtime source selection';
+ const note=$('runtime-'+component+'-detail');
+ if(!note)return;
+ if(mode==='bundle'){
+   note.textContent=c.bundleInstalled?'Bundled executable installed and active.':
+     (c.bundleDownloaded?'Files downloaded but not activated — click Install / update bundle again.':
+       'Bundle not installed. Click Install / update bundle first.')+' Destination: '+c.expectedBundlePath;
+ } else if(mode==='system'){
+   note.textContent=c.systemInstalled?'Detected from your system PATH.':'No executable found on PATH. Install it or choose a custom path.';
+ } else {
+   note.textContent='Custom executable must already exist. Save validates its --version output.';
  }
- $('runtime-node-status').textContent='Running '+x.node.version+' · '+x.node.source+' · '+x.node.path;
- $('runtime-hledger-status').textContent=x.hledger.installed?(x.hledger.version+' · '+x.hledger.path):('Missing · '+x.hledger.path);
- $('runtime-git-status').textContent=x.git.installed?(x.git.version+' · '+x.git.path):('Missing · '+x.git.path);
- $('runtime-update-note').textContent=x.runtime.canUpdate?'Windows x64: installer output is shown in the console below.':'Bundled installer currently requires Windows x64.';
- const y=x.years.includes(state.year)?state.year:(x.years[x.years.length-1]||'');
- $('year-select').replaceChildren(...x.years.map(y=>new Option(y,y)));$('year-select').value=y;$('year-tag').textContent=y||'No year';
- $('workspace-location').textContent=x.workspace;
- const sep=x.runtime.platform.startsWith('win32')?'\\':'/';
- $('journal-location').textContent=y?x.workspace.replace(/[\\/]+$/,'')+sep+['books','years',y,'transactions.journal'].join(sep):'No year';
- $('profile-select').replaceChildren(...x.profile.profiles.map(p=>new Option(p.name+' · '+p.workspace,p.id)));
- $('profile-select').value=x.profile.active;
- $('profile-info').textContent='Current workspace: '+x.profile.current+' · Active on next start: '+x.profile.active;
- if(y&&y!==state.year){state.year=y;await loadJournal();}else state.year=y;
- return x;
+}
+async function refreshStatus(){
+ try {
+   const x=await api('status');
+   if(!x?.runtime?.components?.node||!x.runtime.components.hledger||!x.runtime.components.git)
+     throw new Error('Runtime status format mismatch. Restart start.bat/start.sh and reload the page with Ctrl+F5.');
+   state.token=x.token;state.status=x;state.initialized=x.initialized;
+   $('app-version').textContent=x.appVersion;
+   $('side-workspace').textContent=x.workspace;
+   $('setup-card').classList.toggle('hidden',x.initialized);
+   $('engine-pill').textContent=x.hledger.installed?x.hledger.version:'hledger missing';
+   $('engine-pill').className=x.hledger.installed?'ok':'bad';
+   $('node-pill').textContent='Node.js '+x.node.version;
+   $('card-engine').textContent=x.hledger.installed?(x.hledger.version.match(/\d+\.\d+(\.\d+)?/)||['Detected'])[0]:'Missing';
+   $('card-engine-extra').textContent=x.hledger.installed?'hledger ready':'Configure hledger in Settings';
+   $('card-years').textContent=String(x.years.length);
+   $('card-git').textContent=x.git.initialized?'Enabled':'Not set up';
+   for(const component of ['node','hledger','git']){
+     const c=x.runtime.components[component],selector=$('component-mode-'+component),field=$('component-path-'+component);
+     if(!state.componentEdited[component]){
+       selector.value=c.mode;
+       field.value=selectedRuntimePath(component,c.mode);
+     } else if(selector.value==='bundle' && c.bundleInstalled && !field.value) {
+       field.value=c.bundlePath;
+     }
+     $('runtime-'+component+'-target').textContent=c.target;
+     $('runtime-update-'+component).disabled=!x.runtime.canUpdate;
+     $('runtime-update-'+component).textContent=c.bundleInstalled?'Verify / update bundle':'Install / update bundle';
+     updateSaveState(component);
+   }
+   $('runtime-node-status').textContent='Running '+x.node.version+' · '+x.node.source+' · '+x.node.path;
+   $('runtime-hledger-status').textContent=x.hledger.installed?(x.hledger.version+' · '+x.hledger.source+' · '+x.hledger.path):('hledger missing · selected: '+x.hledger.path);
+   $('runtime-git-status').textContent=x.git.installed?(x.git.version+' · '+x.git.source+' · '+x.git.path):('Git missing · selected: '+x.git.path);
+   $('runtime-update-note').textContent=x.runtime.canUpdate?
+     'Portable updates are downloaded and verified locally. Progress appears in the command console below.':
+     'Portable installations currently support Windows x64; system and custom executables remain available.';
+   const year=x.years.includes(state.year)?state.year:(x.years[x.years.length-1]||'');
+   $('year-select').replaceChildren(...x.years.map(y=>new Option(y,y)));
+   $('year-select').value=year;
+   $('year-tag').textContent=year||'No year';
+   $('workspace-location').textContent=x.workspace;
+   const sep=x.runtime.platform.startsWith('win32')?'\\':'/';
+   $('journal-location').textContent=year?x.workspace.replace(/[\\/]+$/,'')+sep+['books','years',year,'transactions.journal'].join(sep):'No year';
+   $('profile-select').replaceChildren(...x.profile.profiles.map(p=>new Option(p.name+' · '+p.workspace,p.id)));
+   $('profile-select').value=x.profile.active;
+   $('profile-info').textContent='Current workspace: '+x.profile.current+' · Active on next start: '+x.profile.active;
+   if(year&&year!==state.year){state.year=year;await loadJournal();}else state.year=year;
+   return x;
+ } catch(e){
+   const message=e instanceof Error?e.message:String(e);
+   for(const comp of ['node','hledger','git']) {
+     $('runtime-'+comp+'-status').textContent='Status unavailable: '+message;
+     $('component-save-'+comp).disabled=true;
+   }
+   $('runtime-update-note').textContent='Could not refresh status: '+message;
+   $('engine-pill').textContent='hledger status unavailable';
+   $('node-pill').textContent='Node.js status unavailable';
+   throw e;
+ }
 }
 async function loadJournal(){if(!state.year)return;const j=await api('journal?year='+encodeURIComponent(state.year));state.original=j.content;state.etag=j.etag;$('journal-editor').value=j.content;setDirty(false);$('year-tag').textContent=state.year;}
 async function chooseYear(y){if(state.dirty&&!confirm('Discard the unsaved draft and switch year?')){$('year-select').value=state.year;return;}state.year=y;await act(async()=>{await loadJournal();await loadFiles();if(state.tab==='reports')await runReport();});}
@@ -223,25 +311,44 @@ function postingRow(){const div=document.createElement('div');div.className='pos
 function draftTransaction(){if(!state.year){toast('Select a year first.');return;}const date=$('tx-date').value,desc=$('tx-desc').value.trim(),status=$('tx-status').value;if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!desc||/[\r\n]/.test(desc)){toast('Provide a date and single-line description.');return;}const posts=[...$('postings').children].map(row=>[...row.querySelectorAll('input')].map(input=>input.value.trim()));if(posts.some(p=>!p[0]||/[\r\n]/.test(p[0])||/[\r\n]/.test(p[1]))){toast('Every posting needs a single-line account name.');return;}if(posts.filter(p=>!p[1]).length>1){toast('At most one amount may be blank.');return;}const lines=[date+' '+(status?status+' ':'')+desc,...posts.map(p=>'    '+p[0]+(p[1]?'  '+p[1]:''))].join('\n');const editor=$('journal-editor');editor.value=editor.value.replace(/\s*$/,'')+'\n\n'+lines+'\n';setDirty(editor.value!==state.original);$('tx-desc').value='';switchTab('journal');toast('Transaction added to unsaved draft. Save & validate when ready.');}
 document.querySelectorAll('[data-tab]').forEach(el=>el.addEventListener('click',()=>switchTab(el.dataset.tab)));
 function usePath(component){
- const c=state.status?.runtime.components[component];if(!c)return;
  const mode=$('component-mode-'+component).value,input=$('component-path-'+component);
- input.value=mode==='custom'?(c.customPath||''):mode==='bundle'?(c.bundlePath||c.expectedBundlePath):c.systemPath;
- input.readOnly=mode!=='custom';
+ state.componentEdited[component]=true;
+ input.value=selectedRuntimePath(component,mode);
+ updateSaveState(component);
 }
 for(const component of ['node','hledger','git']){
  $('component-mode-'+component).addEventListener('change',()=>usePath(component));
+ $('component-path-'+component).addEventListener('input',()=>{
+   state.componentEdited[component]=true;
+   updateSaveState(component);
+ });
  $('component-save-'+component).addEventListener('click',()=>act(async()=>{
-   const mode=$('component-mode-'+component).value;
-   const r=await api('component',{component,mode,executable:$('component-path-'+component).value.trim()});
-   await refreshStatus();toast(component+' uses '+mode+(r.restartRequired?' after restart.':'.'));
+   const button=$('component-save-'+component);
+   if(button.disabled)return;
+   button.disabled=true;
+   try {
+     const mode=$('component-mode-'+component).value;
+     const r=await api('component',{component,mode,executable:$('component-path-'+component).value.trim()});
+     state.componentEdited[component]=false;
+     await refreshStatus();
+     toast(r.unchanged?'No change to save.':component+' uses '+mode+(r.restartRequired?' after restarting the application.':'.'));
+     await pollConsole();
+   } finally {updateSaveState(component);}
  }));
  $('runtime-update-'+component).addEventListener('click',()=>act(async()=>{
-   const r=await api('runtime-update',{component});
-   toast('Updating '+component+' '+r.target+'. Follow the console below.');
-   $('command-console').scrollIntoView({behavior:'smooth',block:'nearest'});
-   await pollConsole();
+   const button=$('runtime-update-'+component);
+   button.disabled=true;
+   try {
+     const r=await api('runtime-update',{component});
+     toast('Installing / verifying '+component+' '+r.target+'. See the command console below.');
+     $('command-console').scrollIntoView({behavior:'smooth',block:'nearest'});
+     await pollConsole();
+   } finally {
+     button.disabled=!state.status?.runtime?.canUpdate;
+   }
  }));
 }
+$('runtime-status-refresh').addEventListener('click',()=>act(refreshStatus));
 $('profile-create').addEventListener('click',()=>act(async()=>{
  const r=await api('profile-create',{name:$('profile-name').value.trim(),year:$('profile-year').value});
  await api('profile-select',{id:r.id});await refreshStatus();
@@ -259,6 +366,7 @@ $('profile-add-year').addEventListener('click',()=>act(async()=>{
 let lastLogId=0;
 async function pollConsole(){
  const r=await api('console?after='+lastLogId);
+ const finished=r.entries.some(e=>/Portable (node|hledger|git) updater (completed|failed)/.test(e.message));
  const el=$('console-output');
  if(r.entries.length){
    if(lastLogId===0&&el.textContent==='No commands executed yet.')el.textContent='';
@@ -270,6 +378,12 @@ async function pollConsole(){
    el.scrollTop=el.scrollHeight;
  }
  $('console-running').textContent=r.running?'· Updating '+r.running+'…':'· Idle';
+ if(finished) {
+   await refreshStatus();
+   toast(r.entries.some(e=>/Portable (node|hledger|git) updater failed/.test(e.message))?
+     'Bundle update failed. Check the command console for details.':
+     'Bundle installed and verified. Use the bundle source in Settings; restart to activate Node.js.');
+ }
 }
 $('console-refresh').addEventListener('click',()=>act(pollConsole));
 $('console-clear').addEventListener('click',()=>{$('console-output').textContent='';});

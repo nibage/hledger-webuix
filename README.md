@@ -4,7 +4,7 @@ A local-first web interface powered by the **real hledger CLI** and Git, for Win
 
 This is a substantial rework of the original standalone HTML proof of concept. It is no longer a standalone file that reimplements accounting in JavaScript: the browser talks to a small local Node.js server that executes an installed `hledger` binary. This avoids silently losing unsupported journal syntax when saving and gives reports computed by hledger itself.
 
-> **Early development release (webuix 0.2.0).** Do not rely on it as the only copy of important financial data. Test with an example journal first. This is not a certified tax/accounting solution. Compatibility with every hledger release and every journal feature has not been established.
+> **Early development release (webuix 0.2.2).** Do not rely on it as the only copy of important financial data. Test with an example journal first. This is not a certified tax/accounting solution. Compatibility with every hledger release and every journal feature has not been established.
 
 ## Quick start and folders
 
@@ -36,15 +36,15 @@ Documents/
 
 On Windows, double-click **`__hledgerui/start.bat`**. On Linux, run `cd __hledgerui && ./start.sh`. The server opens the correct `http://127.0.0.1:8765/` address automatically (Chrome first on Windows when found, otherwise default browser). Set `HLEDGER_PORT` to override the port. Closing the last UI tab requests shutdown after a six-second grace period, but browser crashes, some navigation modes and external OS/browser conditions may prevent the close event; **Ctrl+C** in the server console remains the reliable shutdown method. Closing the console directly also terminates its attached server. If you have unsaved journal edits, save them before leaving the tab. Opening `index.html` as a file shows a launcher warning, not a usable UI.
 
-**Overview** now displays the full current accounting workspace directory and the exact journal path for the selected year. The **Accounting profile & folders** section creates independent named workspaces under your Documents folder, with their own year files, invoice folders and bank imports. Selecting another profile is saved for the **next** launch; it never moves existing data. If you explicitly set `HLEDGER_WORKSPACE`, that override takes precedence over the profile selected in the UI.
+**Overview** has a single Georgia-style title, compact workspace/profile cards and the full current accounting workspace directory and exact journal path. Year selection and the detected hledger and Node.js versions are in the persistent sidebar footer, not the top header. The **Accounting profile & folders** section creates independent named workspaces under your Documents folder, with their own year files, invoice folders and bank imports. Selecting another profile is saved for the **next** launch; it never moves existing data. If you explicitly set `HLEDGER_WORKSPACE`, that override takes precedence over the profile selected in the UI.
 
 ## Settings and runtime updates
 
-**Settings** has separate Node.js, hledger and Git cards. Each shows running/detected versions and an already visible executable path, and has **Use system**, **Use bundle** and **Custom executable path** options. Selecting system pre-fills the detected path; selecting bundle pre-fills the bundled version's location. Custom paths are validated against each program's `--version` command. Node.js changes apply after restarting the launcher; running Node.js is never overwritten. Other component selections apply to subsequent commands.
+**Settings** has separate Node.js, hledger and Git cards. Each shows running/detected versions and an already visible executable path, and has **Use system**, **Use bundle** and **Custom executable path** options. Selecting **Use system** pre-fills the executable found on PATH. **Use bundle** displays a path only when an activated bundled executable really exists; otherwise the input stays empty and explains that the bundle must first be installed. The expected installation destination is shown separately. **Save path / source** remains disabled when the mode and custom path are unchanged, or when a selected executable is unavailable. Custom paths are validated against each program's `--version` command. Node.js changes apply after restarting the launcher; running Node.js is never overwritten. Other component selections apply to subsequent commands.
 
 On Windows x64, the three **Install / update bundle** buttons launch an asynchronous PowerShell updater. The **Command console**, visible at the bottom of every app page, shows invoked hledger/Git/script commands and streams updater stdout and errors. It does not require dismissing a browser confirmation or opening a separate PowerShell window. The logs are kept **only in memory** and may contain confidential financial paths and report contents. Avoid sharing them publicly without reviewing their content.
 
-Updates are pinned in `__hledgerui/runtime-manifest.json`: Node.js **24.22.3**, hledger **1.52.4**, and Git for Windows **2.56.1** (MinGit ZIP). The updater downloads official HTTPS ZIPs, verifies each expected SHA-256, extracts full runtime directory contents into independent `__hledgerui/data/<component>/win-x64/vVERSION/` folders, verifies `--version`, and activates only the selected version. The previous version is retained. To change a pinned version, a maintainer must review its URL and hash and test compatibility. Avoid setting **Use bundle** before installing the corresponding archive.
+Updates are pinned in `__hledgerui/runtime-manifest.json`: Node.js **24.22.3**, hledger **1.52.4**, and Git for Windows **2.56.1** (MinGit ZIP). The updater downloads official HTTPS ZIPs, verifies each expected SHA-256, extracts full runtime directory contents into independent `__hledgerui/data/<component>/win-x64/vVERSION/` folders, verifies `--version`, and activates only the selected version. The previous version is retained. To change a pinned version, a maintainer must review its URL and hash and test compatibility. The updater can finish activation of an already extracted executable without downloading the ZIP again; this also repairs older installations where activation failed with a PowerShell `File.Replace` exception. Choosing **Use bundle** is blocked until the bundled executable is active.
 
 For a manual installation without Node.js already installed, use PowerShell from the source repo:
 
@@ -55,6 +55,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\__hledgerui\scripts\update
 ```
 
 To build a Windows x64 portable ZIP: `powershell -NoProfile -ExecutionPolicy Bypass -File .\__hledgerui\scripts\build-portable-windows.ps1`, or manually trigger the **Build portable Windows ZIP** GitHub Actions workflow. The packager excludes personal profiles and preferences; it includes only the verified runtimes and program files. Linux portable downloads remain a separate future task.
+
+
+**WinGet versus portable bundles:** `winget install` is useful for a **system installation** such as your existing hledger. It is not a reliable mechanism for installing and activating three independent, pinned, application-local runtimes inside `__hledgerui/data/`. Portable mode therefore downloads the **official upstream ZIPs directly** and verifies SHA-256, rather than invoking WinGet. To update a previously downloaded but unactivated runtime, click **Install / update bundle** again; the updater validates the existing binary and finishes `active.txt` activation. After the job completes, Settings automatically refreshes installed status and paths. If status retrieval fails, the error appears persistently in Settings rather than leaving indefinite “Checking…” placeholders.
 
 ## Windows: installing hledger without Scoop
 
@@ -68,9 +71,9 @@ Expand-Archive "$env:TEMP\hledger-windows-x64.zip" -DestinationPath $dest -Force
 & "$dest\hledger.exe" --version
 ```
 
-This follows the [official 1.52.4 release instructions](https://github.com/hledgerorg/hledger/releases/tag/1.52.4), with a user-local destination. Open the app, choose **hledger path**, and enter the full path `C:\Users\YOUR_USER\AppData\Local\Programs\hledger\hledger.exe`. You do not need to edit `PATH` because the app remembers the validated binary location. Newer hledger versions are not yet fully compatibility-tested against the UI.
+This follows the [official 1.52.4 release instructions](https://github.com/hledgerorg/hledger/releases/tag/1.52.4), with a user-local destination. Open the app, open **Settings → hledger → Custom executable path**, and enter the full path `C:\Users\YOUR_USER\AppData\Local\Programs\hledger\hledger.exe`. You do not need to edit `PATH` if you select **Custom executable path** in Settings and save the validated executable location. Newer hledger versions are not yet fully compatibility-tested against the UI.
 
-The app also includes its own distinctive SVG favicon. The header uses a stable status row and reserves scrollbar space, so moving between sidebar tabs does not shift or recenter the content when the page length changes.
+The app also includes its own distinctive SVG favicon. Installed component versions and the year selector are shown in the sidebar footer, while the main header keeps only the section title and theme control. The scrollbar gutter is reserved to prevent horizontal shifts when switching tabs.
 
 ## Quick start
 
