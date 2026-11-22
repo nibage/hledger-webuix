@@ -199,8 +199,9 @@ test('favicon is served as SVG and tab content has stable layout rules', async t
   const html = await home.text();
   assert.match(html, /rel="icon" type="image\/svg\+xml" href="favicon.svg"/);
   assert.match(html, /scrollbar-gutter:stable/);
-  assert.match(html, /grid-template-areas:"page actions" "statuses statuses"/);
-  assert.match(html, /class="header-status"/);
+  assert.match(html, /class="footer-status"/);
+  assert.doesNotMatch(html, /class="header-status"/);
+  assert.match(html, /\.breadcrumb\{font-family:Georgia/);
   assert.match(html, /if\(tab!==state.tab\)window.scrollTo\(0,0\)/);
 });
 
@@ -246,7 +247,8 @@ test('portable directory layout, index file startup notice and Settings status',
   assert.ok(typeof status.git.installed === 'boolean');
   const html = await (await fetch(base + '/index.html')).text();
   assert.match(html, /id="tab-overview" class="panel active"/);
-  assert.match(html, /Your finances, your files/);
+  assert.doesNotMatch(html, /Your finances, your files/);
+  assert.doesNotMatch(html, /<div class="eyebrow">Workspace<\/div>/);
   assert.match(html, /Quick balance overview/);
   assert.match(html, /id="tab-settings"/);
   for (const id of ['runtime-node-status','runtime-hledger-status','runtime-git-status','component-mode-git']) {
@@ -356,4 +358,57 @@ test('updater supports pinned Git bundle and preserves the full archive layout',
  const builder=await fs.readFile(path.join(root,'scripts','build-portable-windows.ps1'),'utf8');
  assert.match(builder,/Component git -Unattended/);
  assert.doesNotMatch(builder,/Join-Path \$appRoot 'data'\) -Destination \$packageRoot/);
+});
+
+
+test('Runtime settings only save when changed and reject unavailable bundles',async t=>{
+ const {call,base}=await fixture(t);
+ const s=(await call('GET','status')).body;
+ const node=s.runtime.components.node;
+ assert.equal(node.mode,'system');
+ assert.equal(node.bundleInstalled,false);
+ assert.equal(node.bundlePath,'');
+ assert.ok(typeof node.bundleDownloaded==='boolean');
+ assert.equal(node.systemInstalled,!!node.systemPath);
+ const nothing=await call('POST','component',{component:'node',mode:'system'});
+ assert.equal(nothing.status,200);
+ assert.equal(nothing.body.saved,false);
+ assert.equal(nothing.body.unchanged,true);
+ // An expected future path is not sufficient to select a nonexistent binary.
+ const missing=await call('POST','component',{component:'node',mode:'bundle'});
+ assert.equal(missing.status,422);
+ assert.match(missing.body.error,/not installed or active/);
+ const html=await (await fetch(base+'/')).text();
+ for(const c of ['node','hledger','git']){
+   assert.match(html,new RegExp('id="component-save-'+c+'" disabled'));
+   assert.match(html,new RegExp('id="runtime-'+c+'-detail"'));
+ }
+ assert.match(html,/function updateSaveState\(component\)/);
+ assert.match(html,/bundleInstalled\s*\?/);
+ assert.match(html,/if\(finished\) \{/);
+ assert.match(html,/id="runtime-status-refresh"/);
+});
+
+test('Overview title and year/version indicators are in the sidebar footer',async t=>{
+ const {base}=await fixture(t);
+ const html=await (await fetch(base+'/')).text();
+ const sidebar=html.slice(html.indexOf('<aside>'),html.indexOf('</aside>'));
+ const header=html.slice(html.indexOf('<header>'),html.indexOf('</header>'));
+ const overview=html.slice(html.indexOf('<section id="tab-overview"'),html.indexOf('<section id="tab-journal"'));
+ assert.match(sidebar,/class="footer-status"/);
+ assert.match(sidebar,/id="year-select"/);
+ for(const id of ['year-tag','engine-pill','node-pill'])assert.match(sidebar,new RegExp('id="'+id+'"'));
+ assert.match(sidebar,/Target CLI: 1\.52\.x/);
+ assert.doesNotMatch(header,/id="year-select"|id="year-tag"|id="engine-pill"|id="node-pill"/);
+ assert.match(header,/id="page-name">Overview/);
+ assert.doesNotMatch(overview,/Your finances, your files|Open, inspect and manage hledger journals|<div class="eyebrow">Workspace/);
+ assert.match(html,/\.breadcrumb\{font-family:Georgia/);
+ assert.match(html,/font-size:35px/);
+});
+
+test('Windows updater can finish activation for an already-extracted version',async()=>{
+ const ps=await fs.readFile(path.join(__dirname,'..','__hledgerui','scripts','update-runtime.ps1'),'utf8');
+ assert.match(ps,/Move-Item -LiteralPath \$pending -Destination \$active -Force -ErrorAction Stop/);
+ assert.doesNotMatch(ps,/\[System\.IO\.File\]::Replace\(\$pending,\s*\$active,\s*\$null\)/);
+ assert.match(ps,/Runtime selection verification failed/);
 });

@@ -16,11 +16,15 @@ jobs:
         with:
           node-version: '22'
       - run: npm test
+      - name: Verify PowerShell runtime activation without network
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./tests/runtime-activation.test.ps1
       - name: Parse PowerShell scripts
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          foreach ($script in @('__hledgerui/scripts/update-runtime.ps1', '__hledgerui/scripts/build-portable-windows.ps1')) {
+          foreach ($script in @('__hledgerui/scripts/update-runtime.ps1', '__hledgerui/scripts/build-portable-windows.ps1', 'tests/runtime-activation.test.ps1')) {
             $tokens = $null
             $parseErrors = $null
             [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $script), [ref]$tokens, [ref]$parseErrors) | Out-Null

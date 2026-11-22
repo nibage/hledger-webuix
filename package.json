@@ -1,6 +1,6 @@
 {
   "name": "hledger-webuix",
-  "version": "0.2.0",
+  "version": "0.2.2",
   "private": true,
   "description": "Local-first hledger CLI companion for Windows and Linux",
   "scripts": {

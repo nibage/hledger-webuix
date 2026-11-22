@@ -86,10 +86,17 @@ try {
     $active = Join-Path $componentRoot 'active.txt'
     $pending = Join-Path $componentRoot ('.active-' + [Guid]::NewGuid().ToString('N'))
     [System.IO.File]::WriteAllText($pending, $versionName, [System.Text.Encoding]::ASCII)
-    if (Test-Path -LiteralPath $active) {
-        [System.IO.File]::Replace($pending, $active, $null)
-    } else {
-        [System.IO.File]::Move($pending, $active)
+    # Both files live in the same version selector directory. Move-Item -Force
+    # replaces an existing active.txt without File.Replace's invalid null backup
+    # argument on Windows PowerShell 5.1. Existing version folders are untouched.
+    Write-Output "[updater] Switching active runtime to $versionName..."
+    try {
+        Move-Item -LiteralPath $pending -Destination $active -Force -ErrorAction Stop
+    } finally {
+        if (Test-Path -LiteralPath $pending) { Remove-Item -LiteralPath $pending -Force }
+    }
+    if ((Get-Content -LiteralPath $active -Raw).Trim() -cne $versionName) {
+        throw "Runtime selection verification failed for $Component"
     }
     Write-Output "[updater] Activated $Component $version in its own data/$Component folder."
     Write-Output '[updater] Restart the server to use a new Node.js executable.'
