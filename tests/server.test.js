@@ -153,6 +153,8 @@ test('reports Node version and persists a validated custom hledger path (includi
   assert.equal(good.status, 200, JSON.stringify(good.body));
   assert.equal(good.body.hledger.installed, true);
   assert.equal(good.body.hledger.source, 'saved');
+  assert.equal(good.body.runtime.components.hledger.mode, 'custom');
+  assert.equal(good.body.runtime.components.hledger.customPath, process.execPath);
   assert.equal(good.body.hledger.path, process.execPath);
   assert.equal(JSON.parse(await fs.readFile(path.join(workspace, '.webuix/settings.json'), 'utf8')).hledgerPath, process.execPath);
   // Status must survive app restart, with no real hledger on PATH.
@@ -298,6 +300,8 @@ test('Settings exposes all paths and rejects unsafe custom executable paths',asy
  assert.equal(after.runtime.components.node.customPath,process.execPath);
  const logs=(await call('GET','console?after=0')).body;
  assert.ok(logs.entries.some(x=>x.message.includes('node')));
+ assert.ok(logs.entries.some(x=>x.message==='Action: component'));
+
  assert.equal(logs.running,null);
  // Runtime settings do not leak into the user's accounting journal.
  assert.equal((await fs.readdir(workspace).catch(()=>[])).includes('preferences.json'),false);

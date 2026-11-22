@@ -298,9 +298,12 @@ function createApp({ workspace, port = 8765, hledgerBin = process.env.HLEDGER_BI
     const components={};
     for(const name of ['node','hledger','git']){
       const choice=prefs[name]||{};
+      const effectiveSelected=name==='hledger'?hSelected:name==='git'?gSelected:null;
+      const legacyChoice=effectiveSelected && ['saved','environment'].includes(effectiveSelected.source);
+      const currentMode=['system','bundle','custom'].includes(choice.mode)?choice.mode:legacyChoice?'custom':'system';
       components[name]={
-        mode:['system','bundle','custom'].includes(choice.mode)?choice.mode:'system',
-        customPath:typeof choice.path==='string'?choice.path:'',
+        mode:currentMode,
+        customPath:legacyChoice ? effectiveSelected.binary : (typeof choice.path==='string'?choice.path:''),
         systemPath:{node:sysNode,hledger:sysHledger,git:sysGit}[name]||'',
         bundlePath:portableBinary(name)||'',
         expectedBundlePath:PORTABLE_WINDOWS_X64?bundlePath(name):'',
@@ -524,6 +527,7 @@ function createApp({ workspace, port = 8765, hledgerBin = process.env.HLEDGER_BI
       if (!url.pathname.startsWith('/api/')) { send(404, { error: 'Not found.' }); return; }
       if (req.method === 'POST') {
         if (!String(req.headers['content-type'] || '').startsWith('application/json') || req.headers['x-webuix-token'] !== token) fail('Invalid request token.', 403);
+        if (!['/api/client-attach','/api/client-detach'].includes(url.pathname)) writeLog('Action: '+url.pathname.slice(5));
       }
       if (req.method === 'GET' && url.pathname === '/api/status') return send(200, await status());
       if (req.method === 'GET' && url.pathname === '/api/journal') return send(200, await journal(url.searchParams.get('year')));
