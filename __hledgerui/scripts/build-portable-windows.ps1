@@ -13,6 +13,8 @@ if (-not $OutputDir) { $OutputDir = Join-Path $repoRoot 'dist' }
 if ($LASTEXITCODE -ne 0) { throw 'Could not stage portable Node.js.' }
 & (Join-Path $PSScriptRoot 'update-runtime.ps1') -Component hledger -Unattended
 if ($LASTEXITCODE -ne 0) { throw 'Could not stage portable hledger.' }
+& (Join-Path $PSScriptRoot 'update-runtime.ps1') -Component git -Unattended
+if ($LASTEXITCODE -ne 0) { throw 'Could not stage portable Git.' }
 
 New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 $stage = Join-Path $env:TEMP ('hledger-webuix-build-' + [Guid]::NewGuid().ToString('N'))
@@ -26,7 +28,14 @@ try {
     Copy-Item -LiteralPath (Join-Path $repoRoot $name) -Destination $packageRoot
   }
   Copy-Item -LiteralPath (Join-Path $appRoot 'scripts') -Destination $packageRoot -Recurse
-  Copy-Item -LiteralPath (Join-Path $appRoot 'data') -Destination $packageRoot -Recurse
+  # Never include profile settings or user financial paths in portable artifacts.
+  $dataDir = Join-Path $packageRoot 'data'
+  New-Item -ItemType Directory -Path $dataDir -Force | Out-Null
+  foreach ($component in @('node','hledger','git')) {
+    $componentDest = Join-Path $dataDir $component
+    New-Item -ItemType Directory -Path $componentDest -Force | Out-Null
+    Copy-Item -LiteralPath (Join-Path $appRoot "data\$component\win-x64") -Destination $componentDest -Recurse
+  }
 
   $archive = Join-Path $OutputDir 'hledger-webuix-portable-win-x64.zip'
   if (Test-Path -LiteralPath $archive) { Remove-Item -LiteralPath $archive -Force }

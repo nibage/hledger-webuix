@@ -1,20 +1,23 @@
 #!/usr/bin/env sh
 set -eu
-
 cd "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-if ! command -v node >/dev/null 2>&1; then
-  printf '%s\n' 'please install node.js' '1. Visit https://nodejs.org/en/download' '2. Install Node.js LTS (20+).' '3. Start a new terminal and rerun ./start.sh.' >&2
+NODE_EXE=node
+if [ -r data/node-mode.txt ] && [ "$(cat data/node-mode.txt)" = custom ] && [ -r data/node-path.txt ]; then
+  NODE_EXE=$(cat data/node-path.txt)
+fi
+if ! command -v "$NODE_EXE" >/dev/null 2>&1 && [ ! -x "$NODE_EXE" ]; then
+  printf '%s\n' 'please install node.js' 'Download Node.js LTS: https://nodejs.org/en/download' >&2
   exit 1
 fi
-if ! node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 20 ? 0 : 1)' >/dev/null 2>&1; then
-  printf '%s\n' 'please install node.js version 20 or newer' 'Download LTS: https://nodejs.org/en/download' >&2
+if ! "$NODE_EXE" -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 20 ? 0 : 1)' >/dev/null 2>&1; then
+  printf '%s\n' 'please install node.js version 20 or newer' 'https://nodejs.org/en/download' >&2
   exit 1
 fi
-
-: "${HLEDGER_WORKSPACE:=${HOME:-$PWD}/Documents/hledger-finances}"
 : "${HLEDGER_PORT:=8765}"
-printf 'Node.js %s\n' "$(node --version)"
-printf 'Workspace: %s\n' "$HLEDGER_WORKSPACE"
-printf 'Opening http://127.0.0.1:%s/ in your default browser after startup.\n' "$HLEDGER_PORT"
-printf '%s\n' 'Keep this terminal open. Press Ctrl+C to stop.'
-exec node "$PWD/server.js" --workspace "$HLEDGER_WORKSPACE" --port "$HLEDGER_PORT" --open
+printf 'Opening http://127.0.0.1:%s/ after startup.\n' "$HLEDGER_PORT"
+printf '%s\n' 'Closing the last application tab requests shutdown. Ctrl+C stops the server.'
+if [ -n "${HLEDGER_WORKSPACE:-}" ]; then
+  exec "$NODE_EXE" "$PWD/server.js" --workspace "$HLEDGER_WORKSPACE" --port "$HLEDGER_PORT" --open --close-on-tab-exit
+else
+  exec "$NODE_EXE" "$PWD/server.js" --port "$HLEDGER_PORT" --open --close-on-tab-exit
+fi
