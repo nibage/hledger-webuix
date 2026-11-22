@@ -252,7 +252,7 @@ test('portable directory layout, index file startup notice and Settings status',
   }
   assert.match(html, /please open with start script to start node\.js server/);
   assert.match(html, /location\.protocol === "file:"/);
-  assert.match(html, /if \(location\.protocol !== 'file:'\) act\(/);
+  assert.match(html, /if\(location\.protocol!==\x27file:\x27\)\{/);
   assert.match(html, /class="file-launch-banner"/);
   for (const component of ['node','hledger','git']) {
     await fs.access(path.join(__dirname, '..', '__hledgerui','data',component,'.gitkeep'));
