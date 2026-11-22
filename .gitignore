@@ -6,3 +6,7 @@ __hledgerui/data/node/win-x64/
 __hledgerui/data/hledger/win-x64/
 __hledgerui/data/git/win-x64/
 dist/
+__hledgerui/data/preferences.json
+__hledgerui/data/profiles.json
+__hledgerui/data/node-mode.txt
+__hledgerui/data/node-path.txt

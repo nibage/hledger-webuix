@@ -7,3 +7,5 @@ Portable Windows builds download and include unmodified executable binaries from
 - Exact approved archive versions, URLs and SHA-256 checksums are recorded in `runtime-manifest.json`. Verify them independently when updating the manifests.
 
 Runtime binaries are optional and updated independently. See README for the exact update/activation procedure. Personal financial data should be kept outside the application directory.
+
+- **Git for Windows / MinGit**, Git for Windows contributors: https://gitforwindows.org/ and https://github.com/git-for-windows/git . Optional Windows x64 MinGit ZIP v2.56.1.windows.1 is distributed under Git's applicable GPL-2.0 and bundled third-party licences. The complete MinGit tree (not just git.exe) is copied into portable distributions. Official archive SHA-256: 4a92850b6e917da4fd010669b614b55dccf5b0ec333a534cc4be4700dfefdafd. See upstream licence documents included with the MinGit distribution.

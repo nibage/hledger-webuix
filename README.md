@@ -6,55 +6,55 @@ This is a substantial rework of the original standalone HTML proof of concept. I
 
 > **Early development release (webuix 0.2.0).** Do not rely on it as the only copy of important financial data. Test with an example journal first. This is not a certified tax/accounting solution. Compatibility with every hledger release and every journal feature has not been established.
 
-## Program layout
+## Quick start and folders
 
-The runnable app lives inside **`__hledgerui/`**. Do not open `index.html` by double-clicking: it displays only a launcher warning, not live accounting data. Use **`start.bat`** on Windows or **`./start.sh`** on Linux instead. The scripts start Node.js on localhost, then ask the operating system to open the URL with the configured port in your default browser.
+All runnable files live in `__hledgerui/`: `index.html`, `start.bat`, `start.sh`, `server.js`, `scripts/` and optional `data/node/`, `data/hledger/`, `data/git/`. Keep finance workspaces **outside** this folder.
 
 ```text
-hledger-webuix/                       # GitHub source repository
-├── __hledgerui/                      # Runnable application
-│   ├── index.html                    # UI and file:// launch warning
-│   ├── favicon.svg
-│   ├── server.js
+hledger-webuix/
+├── __hledgerui/
+│   ├── index.html
 │   ├── start.bat
 │   ├── start.sh
+│   ├── server.js
 │   ├── runtime-manifest.json
 │   ├── scripts/
-│   │   ├── update-runtime.ps1
-│   │   └── build-portable-windows.ps1
-│   └── data/                         # Optional bundled PROGRAM runtimes, not accounting
-│       ├── node/
-│       ├── hledger/
-│       └── git/                      # Reserved for future bundled Git
+│   └── data/
+│       ├── node/win-x64/vVERSION/node.exe
+│       ├── hledger/win-x64/vVERSION/hledger.exe
+│       ├── git/win-x64/vVERSION/cmd/git.exe
+│       ├── preferences.json        # local; ignored by Git
+│       └── profiles.json           # local; ignored by Git
 ├── tests/
-├── .github/
 └── README.md
 
-Documents/hledger-finances/           # PRIVATE accounting workspace, outside program
+Documents/
+├── hledger-finances/               # Existing/default profile
+└── hledger-finance-profiles/
+    └── my-business/                # Named profile (e.g. 2026 journal and invoices)
 ```
 
-**Windows:** Open `__hledgerui` and double-click **`start.bat`**. **Linux:** run `cd __hledgerui && ./start.sh`. Default URL: `http://127.0.0.1:8765/`. Override with `HLEDGER_PORT` before starting (e.g., `$env:HLEDGER_PORT = '8877'` in PowerShell). The scripts print the localhost URL even if a browser cannot be launched automatically.
+On Windows, double-click **`__hledgerui/start.bat`**. On Linux, run `cd __hledgerui && ./start.sh`. The server opens the correct `http://127.0.0.1:8765/` address automatically (Chrome first on Windows when found, otherwise default browser). Set `HLEDGER_PORT` to override the port. Closing the last UI tab requests shutdown after a six-second grace period, but browser crashes, some navigation modes and external OS/browser conditions may prevent the close event; **Ctrl+C** in the server console remains the reliable shutdown method. Closing the console directly also terminates its attached server. If you have unsaved journal edits, save them before leaving the tab. Opening `index.html` as a file shows a launcher warning, not a usable UI.
 
-The **Overview** tab retains its workspace cards and quick balance. **Settings** shows the installed versions, paths, and status of **Node.js, Git, hledger**, plus independent portable update actions for Windows x64 Node.js/hledger. Git's optional portable folder exists, but downloading/bundling Git is not implemented. No updater modifies the financial workspace.
+**Overview** now displays the full current accounting workspace directory and the exact journal path for the selected year. The **Accounting profile & folders** section creates independent named workspaces under your Documents folder, with their own year files, invoice folders and bank imports. Selecting another profile is saved for the **next** launch; it never moves existing data. If you explicitly set `HLEDGER_WORKSPACE`, that override takes precedence over the profile selected in the UI.
 
-## Bundled Windows runtimes & independent updates
+## Settings and runtime updates
 
-**Windows x64 portable mode** is supported by pinned, separately downloadable runtimes. The public source checkout intentionally contains **no prebundled executables**. Use the two buttons on the **Settings** page to install or update **Node.js** and **hledger** independently into `__hledgerui/data/node/win-x64/` and `__hledgerui/data/hledger/win-x64/`. The pinned versions are defined in `__hledgerui/runtime-manifest.json`. As of this release, they are **Node.js 24.22.3 (LTS)** and **hledger 1.52.4**, each downloaded over HTTPS and verified against a **reviewed SHA-256** before extraction.
+**Settings** has separate Node.js, hledger and Git cards. Each shows running/detected versions and an already visible executable path, and has **Use system**, **Use bundle** and **Custom executable path** options. Selecting system pre-fills the detected path; selecting bundle pre-fills the bundled version's location. Custom paths are validated against each program's `--version` command. Node.js changes apply after restarting the launcher; running Node.js is never overwritten. Other component selections apply to subsequent commands.
 
-Each button launches a separate PowerShell window; you must confirm the operation there, then **stop the currently running UI server with Ctrl+C**. The updater waits for its process to exit before activating the new runtime. The previous runtime version directory remains available for a manual rollback. On the next `__hledgerui/start.bat`, the program prefers bundled Node.js over the system installation. The server prefers bundled hledger over PATH, except when an explicit executable path or `HLEDGER_BIN` was configured. Account files are unaffected.
+On Windows x64, the three **Install / update bundle** buttons launch an asynchronous PowerShell updater. The **Command console**, visible at the bottom of every app page, shows invoked hledger/Git/script commands and streams updater stdout and errors. It does not require dismissing a browser confirmation or opening a separate PowerShell window. The logs are kept **only in memory** and may contain confidential financial paths and report contents. Avoid sharing them publicly without reviewing their content.
 
-If you want to stage a runtime before first launch (does not need Node.js), run in PowerShell:
+Updates are pinned in `__hledgerui/runtime-manifest.json`: Node.js **24.22.3**, hledger **1.52.4**, and Git for Windows **2.56.1** (MinGit ZIP). The updater downloads official HTTPS ZIPs, verifies each expected SHA-256, extracts full runtime directory contents into independent `__hledgerui/data/<component>/win-x64/vVERSION/` folders, verifies `--version`, and activates only the selected version. The previous version is retained. To change a pinned version, a maintainer must review its URL and hash and test compatibility. Avoid setting **Use bundle** before installing the corresponding archive.
+
+For a manual installation without Node.js already installed, use PowerShell from the source repo:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\__hledgerui\scripts\update-runtime.ps1 -Component node
 powershell -NoProfile -ExecutionPolicy Bypass -File .\__hledgerui\scripts\update-runtime.ps1 -Component hledger
+powershell -NoProfile -ExecutionPolicy Bypass -File .\__hledgerui\scripts\update-runtime.ps1 -Component git
 ```
 
-These commands install only the reviewed versions. To ship an updated version, update its URL, version and hash in `__hledgerui/runtime-manifest.json` after reviewing the upstream release and testing CLI compatibility. The buttons **do not silently upgrade to arbitrary latest releases**. To build a fully self-contained release ZIP on Windows x64, run `powershell -NoProfile -ExecutionPolicy Bypass -File __hledgerui/scripts/build-portable-windows.ps1` or trigger the **Build portable Windows ZIP** GitHub Actions workflow manually and download its ZIP artifact. Do not copy downloaded binaries into source control: executable payloads under `__hledgerui/data/` are ignored. These scripts are Windows x64 only; Linux currently continues using system-installed runtimes.
-
-## Packaging recommendation
-
-The source repo intentionally does **not** vendor Node.js or hledger binaries. Two Windows distribution modes are now possible: (1) a small source package that uses installed Node.js and hledger, and (2) a self-contained **Windows x64 portable ZIP** built by the provided workflow that bundles verified upstream runtime binaries. Linux portable packaging remains a future milestone. Bundled runtime updates should be handled in a separate release pipeline, with version/hash verification, security patch tracking and licence notices; **never** check banking data or vendor executables into the public source repository. Keep the private finance workspace outside the app folder so updates cannot overwrite it. The Windows portable packaging workflow is implemented, but needs a successful packaging run to verify the distributable artifact; bundled Git is not yet available.
+To build a Windows x64 portable ZIP: `powershell -NoProfile -ExecutionPolicy Bypass -File .\__hledgerui\scripts\build-portable-windows.ps1`, or manually trigger the **Build portable Windows ZIP** GitHub Actions workflow. The packager excludes personal profiles and preferences; it includes only the verified runtimes and program files. Linux portable downloads remain a separate future task.
 
 ## Windows: installing hledger without Scoop
 

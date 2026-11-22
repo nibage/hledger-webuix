@@ -21,7 +21,9 @@ console.log('MOCK '+args.slice(2).join(' '));
 `);
   await fs.chmod(bin, 0o755);
   const workspace = path.join(home, 'private-finances');
-  const app = createApp({ workspace, port: 0, hledgerBin: process.execPath, hledgerArgsPrefix: [bin] });
+  const configDir=path.join(home,'app-config');
+  const profileFolder=path.join(home,'profiles');
+  const app = createApp({ workspace, port: 0, hledgerBin: process.execPath, hledgerArgsPrefix: [bin], configDir, profileFolder });
   await new Promise(resolve => app.server.listen(0, '127.0.0.1', resolve));
   t.after(() => new Promise(resolve => app.server.close(resolve)));
   const port = app.server.address().port;
@@ -31,7 +33,7 @@ console.log('MOCK '+args.slice(2).join(' '));
     const response = await fetch(base + '/api/' + route, { method, headers: method === 'POST' ? { 'Content-Type': 'application/json', 'X-Webuix-Token': token, ...headers } : headers, body: data === undefined ? undefined : JSON.stringify(data) });
     return { status: response.status, body: await response.json() };
   }
-  return { home, workspace, app, base, token, call };
+  return { home, workspace, configDir, profileFolder, app, base, token, call };
 }
 
 test('workspace is created idempotently and journals retain multi-year includes', async t => {
@@ -138,7 +140,7 @@ test('scripts require manifest and stay within trusted scripts directory', async
 });
 
 test('reports Node version and persists a validated custom hledger path (including when PATH is missing)', async t => {
-  const { home, workspace, call } = await fixture(t);
+  const { home, workspace, configDir, call } = await fixture(t);
   const original = (await call('GET', 'status')).body;
   assert.equal(original.node.installed, true);
   assert.equal(original.node.version, process.version);
@@ -151,11 +153,13 @@ test('reports Node version and persists a validated custom hledger path (includi
   assert.equal(good.status, 200, JSON.stringify(good.body));
   assert.equal(good.body.hledger.installed, true);
   assert.equal(good.body.hledger.source, 'saved');
+  assert.equal(good.body.runtime.components.hledger.mode, 'custom');
+  assert.equal(good.body.runtime.components.hledger.customPath, process.execPath);
   assert.equal(good.body.hledger.path, process.execPath);
   assert.equal(JSON.parse(await fs.readFile(path.join(workspace, '.webuix/settings.json'), 'utf8')).hledgerPath, process.execPath);
   // Status must survive app restart, with no real hledger on PATH.
   const unavailable = createApp({
-    workspace,
+    workspace, configDir,
     hledgerBin: path.join(home, 'does-not-exist-hledger'),
     hledgerArgsPrefix: [path.join(home, 'fake-hledger.js')]
   });
@@ -204,6 +208,8 @@ test('portable runtime pins and settings surface are exposed without automatic c
   const { call, base, workspace } = await fixture(t);
   const status = (await call('GET','status')).body;
   assert.equal(status.runtime.target.node, '24.22.3');
+  assert.equal(status.runtime.target.git, '2.56.1');
+  assert.ok(status.runtime.components.node.systemPath || status.node.path);
   assert.equal(status.runtime.target.hledger, '1.52.4');
   assert.equal(status.runtime.platform, process.platform + '-' + process.arch);
   assert.equal(status.node.source, 'system');
@@ -219,7 +225,7 @@ test('portable runtime pins and settings surface are exposed without automatic c
   assert.match(html, /api\('runtime-update'/);
   const windowsUpdater = await fs.readFile(path.join(__dirname,'..','__hledgerui','scripts','update-runtime.ps1'),'utf8');
   assert.match(windowsUpdater, /Get-FileHash/);
-  assert.match(windowsUpdater, /Wait-Process/);
+  assert.doesNotMatch(windowsUpdater, /Wait-Process/);
   assert.match(windowsUpdater, /\.staging-/);
   const launcher = await fs.readFile(path.join(__dirname,'..','__hledgerui','start.bat'),'utf8');
   assert.match(launcher, /data\\node\\win-x64\\active.txt/);
@@ -243,12 +249,12 @@ test('portable directory layout, index file startup notice and Settings status',
   assert.match(html, /Your finances, your files/);
   assert.match(html, /Quick balance overview/);
   assert.match(html, /id="tab-settings"/);
-  for (const id of ['runtime-node-status','runtime-hledger-status','runtime-git-status','runtime-git-repo']) {
+  for (const id of ['runtime-node-status','runtime-hledger-status','runtime-git-status','component-mode-git']) {
     assert.match(html, new RegExp('id="' + id + '"'));
   }
   assert.match(html, /please open with start script to start node\.js server/);
   assert.match(html, /location\.protocol === "file:"/);
-  assert.match(html, /if \(location\.protocol !== 'file:'\) act\(/);
+  assert.match(html, /if\(location\.protocol!==\x27file:\x27\)\{/);
   assert.match(html, /class="file-launch-banner"/);
   for (const component of ['node','hledger','git']) {
     await fs.access(path.join(__dirname, '..', '__hledgerui','data',component,'.gitkeep'));
@@ -272,4 +278,82 @@ test('launch scripts use configured localhost port and browser opens after serve
   assert.match(bat, /data\\node\\win-x64\\active.txt/);
   assert.match(server, /Start-Process -FilePath/);
   assert.ok(server.indexOf("app.server.listen(port") < server.indexOf("if (args.includes('--open'))"));
+});
+
+test('Settings exposes all paths and rejects unsafe custom executable paths',async t=>{
+ const {call,workspace,configDir}=await fixture(t);
+ const status=(await call('GET','status')).body;
+ for(const component of ['node','hledger','git']){
+   assert.ok(['system','bundle','custom'].includes(status.runtime.components[component].mode));
+   assert.ok(typeof status.runtime.components[component].systemPath==='string');
+   assert.ok(typeof status.runtime.components[component].bundlePath==='string');
+ }
+ const bad=await call('POST','component',{component:'git',mode:'custom',executable:'../git.exe'});
+ assert.equal(bad.status,400);
+ const invalid=await call('POST','component',{component:'git',mode:'custom',executable:process.execPath});
+ assert.equal(invalid.status,422);
+ const node=await call('POST','component',{component:'node',mode:'custom',executable:process.execPath});
+ assert.equal(node.status,200,JSON.stringify(node.body));
+ assert.equal(node.body.restartRequired,true);
+ const after=(await call('GET','status')).body;
+ assert.equal(after.runtime.components.node.mode,'custom');
+ assert.equal(after.runtime.components.node.customPath,process.execPath);
+ const logs=(await call('GET','console?after=0')).body;
+ assert.ok(logs.entries.some(x=>x.message.includes('node')));
+ assert.ok(logs.entries.some(x=>x.message==='Action: component'));
+
+ assert.equal(logs.running,null);
+ // Runtime settings do not leak into the user's accounting journal.
+ assert.equal((await fs.readdir(workspace).catch(()=>[])).includes('preferences.json'),false);
+ assert.ok((await fs.readFile(path.join(configDir,'preferences.json'),'utf8')).includes('node'));
+});
+
+test('a new accounting profile creates a separate, discoverable year structure and can be selected',async t=>{
+ const {call,workspace}=await fixture(t);
+ const label='QA'+Date.now().toString(36);
+ const made=await call('POST','profile-create',{name:label,year:'2026'});
+ assert.equal(made.status,200,JSON.stringify(made.body));
+ const file=path.join(made.body.workspace,'books','years','2026','transactions.journal');
+ assert.match(await fs.readFile(file,'utf8'),/2026/);
+ assert.ok(made.body.workspace!==workspace);
+ const p=(await call('GET','profiles')).body;
+ assert.equal(p.current,workspace);
+ assert.ok(p.profiles.some(x=>x.id===made.body.id));
+ const switched=await call('POST','profile-select',{id:made.body.id});
+ assert.equal(switched.status,200);
+ assert.equal(switched.body.restartRequired,true);
+ const s=(await call('GET','status')).body;
+ assert.equal(s.profile.active,made.body.id);
+ assert.equal(s.profile.current,workspace);
+ await fs.rm(made.body.workspace,{recursive:true,force:true});
+});
+
+test('the command console and tab lifecycle are access controlled',async t=>{
+ const {call,base}=await fixture(t);
+ assert.equal((await call('POST','client-attach',{id:'tab_abcdef1234'})).status,200);
+ assert.equal((await call('POST','client-detach',{id:'tab_abcdef1234'})).status,200);
+ assert.equal((await call('POST','client-attach',{id:'!bad'})).status,400);
+ const attempt=await fetch(base+'/api/runtime-update',{method:'POST',headers:{'Content-Type':'application/json'},body:'{"component":"git"}'});
+ assert.equal(attempt.status,403);
+ const page=await (await fetch(base+'/')).text();
+ for(const id of ['command-console','console-output','component-mode-node','component-mode-hledger','component-mode-git','profile-card','profile-select'])
+   assert.match(page,new RegExp('id="'+id+'"'));
+ assert.doesNotMatch(page,/id="configure-hledger-btn"/);
+ assert.doesNotMatch(page,/Start a separate updater for node/);
+});
+
+test('updater supports pinned Git bundle and preserves the full archive layout',async()=>{
+ const root=path.join(__dirname,'..','__hledgerui');
+ const manifest=require('../__hledgerui/runtime-manifest.json');
+ assert.equal(manifest.git.version,'2.56.1');
+ assert.match(manifest.git['windows-x64'].sha256,/^[0-9a-f]{64}$/);
+ const script=await fs.readFile(path.join(root,'scripts','update-runtime.ps1'),'utf8');
+ assert.match(script,/ValidateSet\('node', 'hledger', 'git'\)/);
+ assert.match(script,/cmd\\git.exe/);
+ assert.match(script,/SHA-256 verified/);
+ assert.match(script,/Move-Item -LiteralPath \$unpack -Destination \$payload/);
+ assert.doesNotMatch(script,/Wait-Process/);
+ const builder=await fs.readFile(path.join(root,'scripts','build-portable-windows.ps1'),'utf8');
+ assert.match(builder,/Component git -Unattended/);
+ assert.doesNotMatch(builder,/Join-Path \$appRoot 'data'\) -Destination \$packageRoot/);
 });
